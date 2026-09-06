@@ -1,0 +1,30 @@
+{
+  "_comment": [
+    "THE SECOND SATELLITE (sky world s4), and it exists to make the registry",
+    "carry more than one of a thing. One satellite proves an island can be added;",
+    "TWO prove the table generalises - that `the hub` is not quietly special and",
+    "that an unlock ladder has more than one rung. The step from one to two is the",
+    "interesting one; two to three is not, which is why there are two.",
+    "",
+    "Same recipe as near_isle (models/island.gltf, the parametric satellite mesh)",
+    "and deliberately identical in geometry: what differs between these two is",
+    "their PRICE and their id, because that is what s4 is testing. Islands that",
+    "differ in shape are an authoring job, not a mechanism job.",
+    "",
+    "NO ZONE, NO CAMERA, NO SUN, NO SKY - see near_isle and ADR-0142."
+  ],
+  "name": "far_isle",
+  "entities": [
+    {
+      "_comment": "The island. Casts nothing (nothing is underneath), tints nothing (a tint would replace the model's own material).",
+      "type": "static_mesh",
+      "model": "models/island.gltf",
+      "pos": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "casts_shadows": false
+    }
+  ]
+}

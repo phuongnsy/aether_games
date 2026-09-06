@@ -1,0 +1,23 @@
+# Coin Rush level (declarative data — no code). gen_content.py validates this and
+# emits typed constants; systems consume it through the cr_content API, never by
+# parsing files. Map legend: '#' solid, '.' sky, 'o' coin, 'P' spawn, 'E' exit.
+# Row 0 is the TOP; every row must be the same width; exactly one 'P', >=1 'E',
+# >=1 'o'.
+name = Downpour
+rain_rate = 260
+wind_base = -28
+gust = 60
+snow = false
+fog = 0.10
+map =
+#......................#
+#......................#
+#......................#
+#....####..............#
+#......................#
+#..####......####......#
+#......................#
+#.....####.......####..#
+#P.ooo.....oo.....ooo..#
+#.####....####....####E#
+########################

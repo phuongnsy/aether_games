@@ -1,0 +1,204 @@
+{
+  "_schema": "What an AUTHORED model must BE, checked by tools/check_model_contract.py (`pixi run models-check`). Separate from tools/asset_rules.json on purpose: that file says where an asset CAME FROM, this one says what its geometry must satisfy, and the two fail for different reasons. Only hand-authored models need an entry — model_studio output is deterministic and verified by regeneration instead. A field left out is not checked; every field present is enforced. Sizes and tolerances are METRES. `flat_pad` is the one field that measures a SURFACE rather than a bounding box: it rasterises the up-facing geometry within `radius_m` of the ORIGIN and asserts both its spread and its height off y=0.",
+  "_why": [
+    "ADR-0135 fixed the pivot convention: true metric size, origin at the base",
+    "centre. Nothing in the test suite can catch a violation — Hearthfield's",
+    "portable oracle is a digest over the SIM, so it stays green through a mesh",
+    "that is wrong by half its height, and the cost oracle counts triangles that",
+    "are identical either way. The FIRST authored model was verified by a human",
+    "looking at a screenshot (event:2026-08-25#93). This file exists to remove",
+    "that dependency before there is a batch of them.",
+    "",
+    "Bounds are computed in WORLD space, composing every node transform down the",
+    "hierarchy, because a mesh sitting on Z=0 under a node translated 5 m up is",
+    "not a mesh at the origin — and a checker reading raw accessor min/max would",
+    "call it correct."
+  ],
+  "models": [
+    {
+      "path": "hearthfield/assets/models/treeline.glb",
+      "why": "The hub island's tree cover. RE-SCATTERED 2026-08-28 onto the REPLACEMENT island by tools/island_scatter.py -- the first committed script for this step; the previous two scatters were driven ad-hoc and only the bake survived. RE-SCATTERED AGAIN the same day onto a 20-34 m annulus, because the board grew 8 -> 24 columns and the steading moved outward with it - the track now reaches 16.6 m, so trees starting at 16 stood in it (event:2026-08-28#24). 48 trees (not 64: it CASTS, so every triangle counts twice, and 48 x 200 = 9,600 against this allowance) placed in 113 tries, rejected on steep normal, BLUE TEXEL, 13 m of farm clearance and a four-way rim probe at 3.5 m, with 4.2 m spacing and each tree sunk 0.15 m because the ray hits the surface at the trunk's centre and the ground falls away around it. THE WATER TEST FOUND NOTHING AND THAT IS CORRECT FOR NOW: the stream was removed from the concept brief after coming back carved twice, so the island has no blue texel until one is painted into the base colour -- the test stays so re-running then just works. Pivot is `layout`, not `base_centre`: trees follow the terrain, so there is no single base plane to assert. THE BUG WORTH NOT REPEATING is in the bake, not the scatter: `join()` leaves every vertex relative to the ACTIVE object's origin, so zeroing the joined object's location translates the whole ring by minus the first tree's position. It reads exactly like a scatter that ignored its own clearance radii -- trees standing on the farm, and an outer radius overshooting by precisely that offset. Apply the location; never zero it.",
+      "size_m": [
+        70.676,
+        6.301,
+        68.354
+      ],
+      "tolerance_m": 0.5,
+      "pivot": "layout",
+      "max_triangles": 9800,
+      "max_materials": 1,
+      "require_normals": true,
+      "metallic_max": 0.0,
+      "roughness_range": [
+        0.8,
+        0.95
+      ],
+      "allowed_extensions": []
+    },
+    {
+      "path": "hearthfield/assets/models/island.gltf",
+      "why": "The hub island. Pivot is TOP-centre, not base-centre (ADR-0135's usual rule): everything else is placed against the top surface, so a plot at y=0 sits on the ground and the keel's depth is free to change without moving a single building. DEEPENED 2026-08-29 from 26.76 m to 44.76 m, and the pivot note above is exactly why it cost one number here and nothing else: the keel grew downward and not one thing standing on the top surface moved. It was 0.36x the island's width - a shallow dish beside the hub's 0.80x cone - and is now ~0.60x, the shallow end of the band the hub swap proved by rendering 0.60/0.80/1.00. Triangle count is UNCHANGED at 560: the profile moved vertices, it did not add rings. The winding is the thing to watch - it was inverted on the first export and the symptom was not a crash but the island's TOP rendering as rock, because the cap was culled and you saw the inside of the far cliff through it.",
+      "size_m": [
+        74.98,
+        44.76,
+        73.87
+      ],
+      "tolerance_m": 0.5,
+      "pivot": "top_centre",
+      "max_triangles": 900,
+      "max_materials": 2,
+      "require_normals": true,
+      "metallic_max": 0.0,
+      "roughness_range": [
+        0.8,
+        0.99
+      ],
+      "allowed_extensions": []
+    },
+    {
+      "path": "hearthfield/assets/models/clouds.gltf",
+      "why": "The cloud sea. Listed here for the SCENE-REACHABILITY and material checks rather than for its size: this is the check that caught three model_studio scenes shipping an empty glTF default scene, a defect the engine's own importer is too forgiving to notice. The triangle allowance is the second reason - background clouds are 18% of the board's cost and it should hurt to grow them without noticing.",
+      "size_m": [
+        284.4,
+        36.5,
+        299.8
+      ],
+      "tolerance_m": 2.0,
+      "pivot": "layout",
+      "max_triangles": 9000,
+      "max_materials": 1,
+      "require_normals": true,
+      "metallic_max": 0.0,
+      "roughness_range": [
+        0.9,
+        1.0
+      ],
+      "allowed_extensions": []
+    },
+    {
+      "path": "hearthfield/assets/models/hub_island.glb",
+      "why": "The HUB ISLAND. REPLACED 2026-08-28 by a second Meshy sculpt, and the reason is the PIVOT: this one's plateau is genuinely central, so the origin is the farm pad AND the island's centre at once. That is why camera.hpp's four asymmetric extents collapsed to a symmetric box -- the previous sculpt's middle was a river gorge, forcing the pad 14 m off-centre and propagating that offset into three files. Produced by tools/island_retopo.py (weld -> quadriflow -> bake -> deepen keel -> re-origin -> flatten pad), replacing 7,764 triangles that were made by driving the same steps ad-hoc. THE ORIGIN IS THE PAD SURFACE, so a building at y=0 sits ON the ground and the keel's depth is free to change without moving one -- which it did: the keel ships at 0.80x the width, chosen by rendering 0.60/0.80/1.00 and rejecting 1.00 on sight (it elongates the strata into stripes and reads as a carrot). THE PAD IS FLAT TO 0.01 m over 18 m against a 0.12 m tile, and it got there without the local subdivide the previous island needed: flattening a core WIDER than the measured window (12.1 m core for an 18 m pad) leaves no face straddling the boundary, which is discovery:2026-08-26#32's lesson in a third form. PIVOT STAYS `layout` AND `top_centre` WAS TRIED AND REFUSED: the origin is the PAD, which is not a bbox extreme, because the rim mounds and boulders stand up to 3.04 m above it -- `top_centre` asserts max Y == 0 and a model whose charm sticks up cannot satisfy it. What actually wants asserting here is `the pad at the origin is at y=0 and flat`, which no pivot enum can express and which is precisely the gap task i3 of the swap plan exists to close.",
+      "size_m": [
+        75.0,
+        65.551,
+        74.737
+      ],
+      "tolerance_m": 0.5,
+      "pivot": "layout",
+      "max_triangles": 8000,
+      "max_materials": 1,
+      "require_normals": true,
+      "metallic_max": 0.0,
+      "roughness_range": [
+        0.8,
+        0.95
+      ],
+      "allowed_extensions": [],
+      "flat_pad": {
+        "radius_m": 9.0,
+        "max_spread_m": 0.05,
+        "max_height_m": 0.05
+      }
+    },
+    {
+      "path": "hearthfield/assets/models/mill.gltf",
+      "why": "The mill (art bible 6.4), built from primitives by model_studio. Three numbers are load-bearing. WIDTH is DERIVED from the game: content::kCellSize 1.0 m x span 2, less the 0.1 m seam view/buildings.cpp leaves, so 1.9 m. An earlier pass used 1.8 by taking that seam twice, because sails wider than that interpenetrate a mill built next door -- and the limit is the blade's far CORNER, not its centreline tip, since at 45 degrees both the length and half the width project onto x. HEIGHT is the roof cone's apex BY CONSTRUCTION, so the silhouette cannot move when the chimney is nudged. The 450-triangle ceiling sits above the actual 368 against an allowance of 900: this is the THIRD authored shape, and the first two were rejected on sight for spending too little -- 168 triangles bought the bare forms and no silhouette. What earned the difference is a plinth, an eave that oversails the wall by 0.125 m, and sails standing 0.18 m proud on a hub so they shadow the tower. FOUR primitives, not three: the sails are their own node so the game can spin them, and a primitive is a draw in each pass. PIVOT IS `base`, NOT `base_centre`: the origin is the TOWER AXIS at ground level, which is what a building placed on a cell and rotated in 90-degree detents has to turn about. The bbox is deliberately NOT centred on it, because the sails overhang the front by design -- centring the bbox would put the rotation axis inside the sail sweep. What still has to hold is the CELL envelope (max |x| and |z| within 0.9 m of the origin), and that is asserted by the scene's unit test rather than here, since this file checks size rather than placement.",
+      "size_m": [
+        1.9,
+        3.2,
+        1.5
+      ],
+      "tolerance_m": 0.01,
+      "pivot": "base",
+      "max_triangles": 450,
+      "max_materials": 3,
+      "require_normals": true,
+      "metallic_max": 0.0,
+      "roughness_range": [
+        0.85,
+        0.95
+      ],
+      "allowed_extensions": []
+    },
+    {
+      "path": "hearthfield/assets/models/field_fence.gltf",
+      "why": "The field's boundary. Pivot is `layout`, not `base_centre`: this IS the board's origin and centring it would invite someone to move it. SIZE IS DERIVED FROM THE GAME and is the pair that drifts - 25.14 m is 2 x HALF (12.5) plus one post's width, where 12.5 clears the outermost tile's edge at 11.96 (kCellSize 1.0 x 24 columns, tiles 0.92 wide). Change kDefaultColumns and this must move with it, exactly as the build ring and the steading did on 2026-08-28. The allowance is 600 against an actual 540: this is ONE baked mesh standing in for what would otherwise be one entity per post, so growth here means detail nobody can see at a fence's on-screen thickness of a few pixels.",
+      "size_m": [
+        25.14,
+        1.05,
+        25.14
+      ],
+      "tolerance_m": 0.02,
+      "pivot": "layout",
+      "max_triangles": 600,
+      "max_materials": 1,
+      "require_normals": true,
+      "metallic_max": 0.0,
+      "roughness_range": [
+        0.8,
+        0.95
+      ],
+      "allowed_extensions": []
+    },
+    {
+      "path": "hearthfield/assets/models/wheat.gltf",
+      "why": "Wheat. SIZE IS A CONTRACT WITH THE SIM: it must stay INSIDE content::kCropRadius * 2 = 0.66 m and kCropHeight = 0.80 m, because those are the pick box the sim raycasts and a mesh wider than its box cannot be tapped at the edges. Under is safe, over is not. Deliberately the TIGHTER of the two silhouettes - corn is capped at 0.52 m by that same box, so the contrast between them had to be built from this side. One mesh serves every growth stage (growth is a uniform scale), so this is authored at FULL growth and must still read squashed to 15%.",
+      "size_m": [
+        0.267,
+        0.683,
+        0.28
+      ],
+      "tolerance_m": 0.02,
+      "pivot": "base_centre",
+      "max_triangles": 72,
+      "max_materials": 1,
+      "require_normals": true,
+      "metallic_max": 0.0,
+      "roughness_range": [
+        0.8,
+        0.95
+      ],
+      "allowed_extensions": []
+    },
+    {
+      "path": "hearthfield/assets/models/corn.gltf",
+      "why": "Corn. The WIDER, TALLER silhouette against wheat's tuft - broad angled leaves on an upright stalk, and the only thing distinguishing the two crops, since board.cpp spends colour on ripe-versus-growing. 0.518 m across against the sim's 0.66 m pick box leaves little room, which is why wheat was tightened rather than corn widened. Height 0.802 is kCropHeight to within tolerance and must not exceed it. PIVOT IS `base`, NOT `base_centre`, for the mill's reason: the origin is the STALK AXIS at ground level, which is where the plant is planted, and the bbox is deliberately not centred on it because the cob grows out one side. Centring the box would move the stalk off the plot centre to make an assertion true.",
+      "size_m": [
+        0.518,
+        0.802,
+        0.361
+      ],
+      "tolerance_m": 0.02,
+      "pivot": "base",
+      "max_triangles": 72,
+      "max_materials": 1,
+      "require_normals": true,
+      "metallic_max": 0.0,
+      "roughness_range": [
+        0.8,
+        0.95
+      ],
+      "allowed_extensions": []
+    },
+    {
+      "path": "hearthfield/assets/models/coop.gltf",
+      "why": "The coop (art bible 6.5). DEPTH IS 2.74 m AGAINST A ~2.0 m FOOTPRINT AND THAT IS THE RAMP, which runs 0.7 m out from the -Z wall towards the yard - a building's footprint and its bounding box are not the same thing when something sticks out of it. Worth knowing because runtime::kCoopCell reserves only a 2x2 build footprint, so a mill placed next door could overlap the ramp; nothing enforces otherwise and nothing has needed to. Height is exactly 2.20 m, the art bible ridge; the chimney tops out level with it. Pivot is `base`, not `base_centre`: the origin is the building's own centre at ground level and the box is deliberately off-centre in Z because of that ramp. Three materials, of which TWO ARE THE MILL'S TEXTURES referenced as-is - 6.5's siblings rule, made unable to drift.",
+      "size_m": [
+        2.1,
+        2.2,
+        2.736
+      ],
+      "tolerance_m": 0.02,
+      "pivot": "base",
+      "max_triangles": 700,
+      "max_materials": 3,
+      "require_normals": true,
+      "metallic_max": 0.0,
+      "roughness_range": [
+        0.85,
+        0.95
+      ],
+      "allowed_extensions": []
+    }
+  ]
+}

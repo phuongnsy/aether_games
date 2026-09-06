@@ -1,0 +1,71 @@
+{
+  "_comment": [
+    "LOAD-AND-STAY-RESIDENT (GEA 16.4.2's LSR): what every island shares and no",
+    "island owns. Loaded once at startup and NEVER unloaded, which is the whole",
+    "reason it is a separate chunk - s5 unloads the island you leave, and the",
+    "camera, the sun and the sky must survive that crossing.",
+    "",
+    "THE CAMERA IS THE PLAYER'S, NOT THE ISLAND'S, and that was a decision with a",
+    "live alternative: letting each island author its own camera would let a",
+    "satellite at a different scale pick its own framing, and the rig already",
+    "ADOPTS authored framing rather than imposing one. It loses continuity across",
+    "a crossing - zoom, detent and focus would be reset by arrival - so per-island",
+    "framing is a half-height override in content::kIslands instead, and there is",
+    "exactly one camera in the world.",
+    "",
+    "THE SUN IS HERE FOR THE SAME REASON and one more: one directional light means",
+    "one shadow pass, and an island that brought its own would either double that",
+    "or silently win by load order."
+  ],
+  "name": "persistent",
+  "entities": [
+    {
+      "_comment": "THE FIRST NON-LAB CONSUMER of ProjectionMode::kOrthographic3D (ADR-0081, made expressible here by ADR-0101). ortho_half_height is the framing and it is in WORLD METRES: half the view volume's height. 20 SINCE 2026-08-26, up from 6, so the game OPENS on the island rather than on an anonymous green field - at 6 neither the rim nor the sky was in frame and nothing said this world floats. 20 is the largest framing that stays PLAYABLE: a 1 m plot is 18 px tall at 720p against a drag slop of 8, where the whole-island shot at 34 leaves it 10.6 px and a tap is a coin toss against a pan. 'distance' only slides the near/far window under a parallel projection and CANNOT zoom — app/ zooms by changing half-height, which is the trap section 3c of the plan is about. yaw 45 is detent 0 of four; app/ owns the other three. MOVED HERE from farm.world.json by sky world s3: it is the player's viewpoint, not the farm's, and the farm is now a chunk that travel unloads. DISTANCE 40 -> 300 AND FAR 200 -> 700 ON 2026-08-29, and this is the sentence above being taken seriously rather than a tuning change. Distance slides the near/far window, and at 40 that window did not contain the ARCHIPELAGO: a satellite 90 m away sat at depth -16 along the view axis - BEHIND the near plane - so both neighbours rendered visibly SLICED BY A FLAT PLANE, one losing its whole keel. Nobody saw it for three days because the bug needs two things at once, a second island and a zoomed-out camera, and every capture until the sky world had neither. The numbers: the worst depth across the archipelago is about -165 m (standing on the far isle, looking at the near one, plus half an island), and the worst positive is about +233 m including the cloud sea's far corner, so 300 and 700 both carry roughly 2x margin. Under a PARALLEL projection pushing the eye back costs nothing - the image is identical - which is why this is free. min_distance and max_distance move WITH it: OrbitComponent clamps distance into that range, so leaving them at 40 would have silently undone the fix.",
+      "type": "camera",
+      "projection": "orthographic3d",
+      "ortho_half_height": 20.0,
+      "near": 0.1,
+      "far": 700,
+      "active": true,
+      "orbit": true,
+      "target": [
+        0,
+        0,
+        0
+      ],
+      "distance": 300,
+      "yaw": 45,
+      "pitch": 35,
+      "min_distance": 300,
+      "max_distance": 300
+    },
+    {
+      "_comment": "Mid-morning sun. It CASTS, because a plot grid with no shadows reads as a flat texture and check 1 asks for shadows specifically — the crops standing off their tiles is the whole depth cue under a parallel projection.",
+      "type": "directional_light",
+      "rot": [
+        50,
+        -35,
+        0
+      ],
+      "color": [
+        1.0,
+        0.95,
+        0.85
+      ],
+      "intensity": 4.2,
+      "casts_shadows": true
+    },
+    {
+      "_comment": "THE CLOUD SEA (sky world s2). Geometry, not a skybox, and that is forced rather than chosen: render::Skybox ignores orthographic cameras because a parallel projection gives every pixel ONE view direction, so a cube map sampled by that ray is a single flat colour. Geometry is also better here - real depth means real parallax when the board pans, which is what sells floating. Casts nothing (there is nothing under it to receive) and receives nothing (a cloud lit from below by a farm is not a thing). PERSISTENT since s3: the sky is the same sky from every island, and reloading it per island would both cost a load and let two islands disagree about the weather.",
+      "type": "static_mesh",
+      "model": "models/clouds.gltf",
+      "pos": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "casts_shadows": false,
+      "receives_shadows": false
+    }
+  ]
+}

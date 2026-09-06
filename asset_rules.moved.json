@@ -1,0 +1,1121 @@
+{
+  "_comment": [
+    "The asset rules that came from aether when the games moved (ADR-0170).",
+    "They regenerate these games' assets from the tool studios, which stayed",
+    "in the engine repo -- so running them needs an aether checkout. They are",
+    "kept verbatim rather than rewritten, because the commands are the record",
+    "of how every one of these files was produced."
+  ],
+  "rules": [
+    {
+      "_why": "games/lantern owns its character rather than borrowing the test fixture — games/CLAUDE.md forbids a game reaching into sandbox or tests assets.",
+      "cmd": [
+        "python",
+        "main.py",
+        "scene",
+        "character",
+        "--out",
+        "../../games/lantern/assets/models"
+      ],
+      "cwd": "tools/model_studio",
+      "outputs": [
+        "games/lantern/assets/models/walker.gltf"
+      ]
+    },
+    {
+      "_why": "hearthfield's rounded paper panel — the 9-slice behind every screen. `--style round` because the art bible's brief for every object in this world is `clean flat colour blocking, soft rounded edges, no gloss`, so a rounded UI is DERIVED from an existing spec rather than chosen for taste. THE PALETTE FILE IS A LUMINANCE RAMP, NOT A ROLE LIST, and that cost a round: Palette.ramp sorts by luminance and hands the 5 entries to border/shadow/fill/highlight/text IN THAT ORDER, so the THIRD-lightest becomes the fill. The first version copied coin_rush's shape and included the dark ink colour, which stole the border slot, shifted every role by one and produced a tan panel instead of a cream one. coin_rush gets away with listing its text colour because its scheme is dark-panel/light-text, where luminance order and role order coincide; a light-panel/dark-text scheme CANNOT put its text colour in the file at all — the engine draws that text and ui::Theme carries the colour.",
+      "cmd": [
+        "python",
+        "main.py",
+        "panel",
+        "--width",
+        "32",
+        "--height",
+        "32",
+        "--style",
+        "round",
+        "--border",
+        "3",
+        "--radius",
+        "8",
+        "--palette",
+        "../../games/hearthfield/assets/palettes/ui.hex",
+        "--out",
+        "../../games/hearthfield/assets/textures/panel"
+      ],
+      "cwd": "tools/ui_studio",
+      "outputs": [
+        "games/hearthfield/assets/textures/panel.png",
+        "games/hearthfield/assets/textures/panel.json"
+      ]
+    },
+    {
+      "_why": "hearthfield's buttons, three state textures plus their 9-slice margins. Soil #8A6A47 as the fill rather than the art bible's timber #B59E81, because a button has to hold cream text at HUD size and timber is too light to carry it. This palette needs no reordering — its entries already rise in luminance in role order, which is the coincidence the panel rule above does NOT enjoy.",
+      "cmd": [
+        "python",
+        "main.py",
+        "button",
+        "--width",
+        "40",
+        "--height",
+        "28",
+        "--style",
+        "round",
+        "--border",
+        "3",
+        "--radius",
+        "8",
+        "--palette",
+        "../../games/hearthfield/assets/palettes/button.hex",
+        "--out",
+        "../../games/hearthfield/assets/textures/btn"
+      ],
+      "cwd": "tools/ui_studio",
+      "outputs": [
+        "games/hearthfield/assets/textures/btn_normal.png",
+        "games/hearthfield/assets/textures/btn_hover.png",
+        "games/hearthfield/assets/textures/btn_pressed.png",
+        "games/hearthfield/assets/textures/btn.json"
+      ]
+    },
+    {
+      "_why": "games/hearthfield's HUD font. IT HAD NO RULE AT ALL until 2026-08-29 — lantern's and coin_rush's were both here and hearthfield's font was committed beside them with its provenance in someone's shell history, which is the exact gap tools/CLAUDE.md names. NO OUTLINE, and that is the interesting parameter rather than an omission: the ring is drawn at SOURCE resolution and then scaled, so on a 5x7 face a 1px outline is 20% of the glyph's width on each side and the stroke comes out two-thirds outline. Measured on a scanline through the old HUD: 4,4 / 36,36 / 4,4 — two pixels of outline around two pixels of letter. It read as blurry and was not; the renderer was exact (three distinct levels, every run 2 px). Nothing here draws text over the world — every Label in hearthfield sits on a paper panel — so the outline was protecting a case that does not exist and closing the counters of 0, 8 and e for nothing. Size 2 rather than 3 because 3 clips the `Orders` tab, the `planting:` row and the shop's widest button; going bigger is a layout change, not a font one.",
+      "cmd": [
+        "python",
+        "main.py",
+        "font",
+        "--size",
+        "2",
+        "--color",
+        "#ffffff",
+        "--out",
+        "../../games/hearthfield/assets/fonts/hud"
+      ],
+      "cwd": "tools/ui_studio",
+      "outputs": [
+        "games/hearthfield/assets/fonts/hud.fnt",
+        "games/hearthfield/assets/fonts/hud_0.png"
+      ]
+    },
+    {
+      "_why": "games/lantern's HUD font. A game owns its authored assets (games/CLAUDE.md); borrowing the sandbox's would couple the game to the engine's sample build. STILL OUTLINED, deliberately left alone when hearthfield's outline came off on 2026-08-29: lantern is a night scene and its text is not guaranteed to sit on a panel, which is the case an outline is actually for.",
+      "cmd": [
+        "python",
+        "main.py",
+        "font",
+        "--size",
+        "2",
+        "--outline",
+        "--color",
+        "#ffffff",
+        "--out",
+        "../../games/lantern/assets/fonts/hud"
+      ],
+      "cwd": "tools/ui_studio",
+      "outputs": [
+        "games/lantern/assets/fonts/hud.fnt",
+        "games/lantern/assets/fonts/hud_0.png"
+      ]
+    },
+    {
+      "_why": "The spire's platforms are all scaled cubes. The game owns the primitive rather than reaching into sandbox/ or tests/ for one.",
+      "cmd": [
+        "python",
+        "main.py",
+        "primitive",
+        "cube",
+        "--out",
+        "../../games/lantern/assets/models"
+      ],
+      "cwd": "tools/model_studio",
+      "outputs": [
+        "games/lantern/assets/models/cube.gltf"
+      ]
+    },
+    {
+      "_why": "Lantern's lantern-lit chime. The first audio asset in the repo with reproducible provenance. Tuned by EAR after the first version was played and judged wrong: the fault was the fundamental sitting too high, not the inharmonic partials — so this is pitched down to 330 Hz and KEEPS its bell character (warmth 0.6) rather than being smoothed toward a pure tone.",
+      "cmd": [
+        "python",
+        "main.py",
+        "chime",
+        "--freq",
+        "330",
+        "--warmth",
+        "0.6",
+        "--brightness",
+        "0.38",
+        "--partials",
+        "4",
+        "--attack",
+        "0.015",
+        "--seconds",
+        "2.2",
+        "--out",
+        "../../games/lantern/assets/audio/lantern_lit"
+      ],
+      "cwd": "tools/audio_studio",
+      "outputs": [
+        "games/lantern/assets/audio/lantern_lit.wav"
+      ]
+    },
+    {
+      "cmd": [
+        "python",
+        "main.py",
+        "generate",
+        "coin",
+        "--size",
+        "24",
+        "--out",
+        "../../games/coin_rush/assets/textures/coin.png"
+      ],
+      "cwd": "tools/pixel_studio",
+      "outputs": [
+        "games/coin_rush/assets/textures/coin.png"
+      ],
+      "note": "Provenance RECOVERED 2026-08-13 by regenerating and comparing bytes, not by reading a commit message; only a byte-identical result was accepted. The size came from the PNG's own IHDR."
+    },
+    {
+      "cmd": [
+        "python",
+        "main.py",
+        "generate",
+        "hero",
+        "--size",
+        "32",
+        "--out",
+        "../../games/coin_rush/assets/textures/hero.png"
+      ],
+      "cwd": "tools/pixel_studio",
+      "outputs": [
+        "games/coin_rush/assets/textures/hero.png"
+      ],
+      "note": "Provenance RECOVERED 2026-08-13 by regenerating and comparing bytes, not by reading a commit message; only a byte-identical result was accepted. The size came from the PNG's own IHDR."
+    },
+    {
+      "cmd": [
+        "python",
+        "main.py",
+        "generate",
+        "wall",
+        "--size",
+        "32",
+        "--out",
+        "../../games/coin_rush/assets/textures/wall.png"
+      ],
+      "cwd": "tools/pixel_studio",
+      "outputs": [
+        "games/coin_rush/assets/textures/wall.png"
+      ],
+      "note": "Provenance RECOVERED 2026-08-13 by regenerating and comparing bytes, not by reading a commit message; only a byte-identical result was accepted. The size came from the PNG's own IHDR."
+    },
+    {
+      "cmd": [
+        "python",
+        "main.py",
+        "generate",
+        "starfield",
+        "--size",
+        "64",
+        "--out",
+        "../../games/coin_rush/assets/textures/starfield.png"
+      ],
+      "cwd": "tools/pixel_studio",
+      "outputs": [
+        "games/coin_rush/assets/textures/starfield.png"
+      ],
+      "note": "Provenance RECOVERED 2026-08-13 by regenerating and comparing bytes, not by reading a commit message; only a byte-identical result was accepted. The size came from the PNG's own IHDR."
+    },
+    {
+      "cmd": [
+        "python",
+        "main.py",
+        "generate",
+        "floor",
+        "--size",
+        "32",
+        "--param",
+        "style=flow",
+        "--out",
+        "../../games/coin_rush/assets/textures/floor.png"
+      ],
+      "cwd": "tools/pixel_studio",
+      "outputs": [
+        "games/coin_rush/assets/textures/floor.png"
+      ],
+      "note": "Provenance RECOVERED 2026-08-13 by regenerating and comparing bytes, not by reading a commit message; only a byte-identical result was accepted. The size came from the PNG's own IHDR; the style param from a sweep."
+    },
+    {
+      "cmd": [
+        "python",
+        "main.py",
+        "generate",
+        "glow",
+        "--size",
+        "16",
+        "--out",
+        "../../games/coin_rush/assets/effects/glow.png"
+      ],
+      "cwd": "tools/pixel_studio",
+      "outputs": [
+        "games/coin_rush/assets/effects/glow.png"
+      ],
+      "note": "Provenance RECOVERED 2026-08-13 by regenerating and comparing bytes, not by reading a commit message; only a byte-identical result was accepted. The size came from the PNG's own IHDR."
+    },
+    {
+      "cmd": [
+        "python",
+        "main.py",
+        "generate",
+        "light",
+        "--size",
+        "64",
+        "--out",
+        "../../games/coin_rush/assets/effects/light.png"
+      ],
+      "cwd": "tools/pixel_studio",
+      "outputs": [
+        "games/coin_rush/assets/effects/light.png"
+      ],
+      "note": "Provenance RECOVERED 2026-08-13 by regenerating and comparing bytes, not by reading a commit message; only a byte-identical result was accepted. The size came from the PNG's own IHDR."
+    },
+    {
+      "cmd": [
+        "python",
+        "main.py",
+        "generate",
+        "smoke",
+        "--size",
+        "16",
+        "--out",
+        "../../games/coin_rush/assets/effects/smoke.png"
+      ],
+      "cwd": "tools/pixel_studio",
+      "outputs": [
+        "games/coin_rush/assets/effects/smoke.png"
+      ],
+      "note": "Provenance RECOVERED 2026-08-13 by regenerating and comparing bytes, not by reading a commit message; only a byte-identical result was accepted. The size came from the PNG's own IHDR."
+    },
+    {
+      "cmd": [
+        "python",
+        "main.py",
+        "generate",
+        "normalmap",
+        "--size",
+        "48",
+        "--out",
+        "../../games/coin_rush/assets/effects/floor_normal.png"
+      ],
+      "cwd": "tools/pixel_studio",
+      "outputs": [
+        "games/coin_rush/assets/effects/floor_normal.png"
+      ],
+      "note": "Provenance RECOVERED 2026-08-13 by regenerating and comparing bytes, not by reading a commit message; only a byte-identical result was accepted. The size came from the PNG's own IHDR."
+    },
+    {
+      "cmd": [
+        "python",
+        "main.py",
+        "generate",
+        "normalmap",
+        "--size",
+        "48",
+        "--param",
+        "style=bevel",
+        "--out",
+        "../../games/coin_rush/assets/effects/wall_normal.png"
+      ],
+      "cwd": "tools/pixel_studio",
+      "outputs": [
+        "games/coin_rush/assets/effects/wall_normal.png"
+      ],
+      "note": "Provenance RECOVERED 2026-08-13 by regenerating and comparing bytes, not by reading a commit message; only a byte-identical result was accepted. The size came from the PNG's own IHDR; the style param from a sweep."
+    },
+    {
+      "cmd": [
+        "python",
+        "main.py",
+        "font",
+        "--size",
+        "3",
+        "--out",
+        "../../games/coin_rush/assets/fonts/hud"
+      ],
+      "cwd": "tools/ui_studio",
+      "outputs": [
+        "games/coin_rush/assets/fonts/hud.fnt",
+        "games/coin_rush/assets/fonts/hud_0.png"
+      ],
+      "note": "Provenance RECOVERED 2026-08-13 by regenerating and comparing bytes, not by reading a commit message; only a byte-identical result was accepted. The `.fnt` header states `size=3`, which named the flag directly — the one case here that did not need a sweep."
+    },
+    {
+      "cmd": [
+        "python",
+        "main.py",
+        "font",
+        "--size",
+        "5",
+        "--out",
+        "../../games/coin_rush/assets/fonts/title"
+      ],
+      "cwd": "tools/ui_studio",
+      "outputs": [
+        "games/coin_rush/assets/fonts/title.fnt",
+        "games/coin_rush/assets/fonts/title_0.png"
+      ],
+      "note": "Provenance RECOVERED 2026-08-13 by regenerating and comparing bytes, not by reading a commit message; only a byte-identical result was accepted. The `.fnt` header states `size=5`, which named the flag directly — the one case here that did not need a sweep."
+    },
+    {
+      "cmd": [
+        "python",
+        "main.py",
+        "coin_pickup",
+        "--out",
+        "../../games/coin_rush/assets/effects"
+      ],
+      "cwd": "tools/vfx_studio",
+      "outputs": [
+        "games/coin_rush/assets/effects/coin_pickup.vfx"
+      ],
+      "note": "Provenance RECOVERED 2026-08-13 by regenerating and comparing bytes, not by reading a commit message; only a byte-identical result was accepted. Per-effect rather than `all`, which would also write six presets this game does not use. Writes an untracked `.json` sidecar beside the asset — the studio has no flag to suppress it, and the committed tree never had one. Harmless (assets-check compares the listed outputs) but it dirties the directory on a regen."
+    },
+    {
+      "cmd": [
+        "python",
+        "main.py",
+        "goal_explosion",
+        "--out",
+        "../../games/coin_rush/assets/effects"
+      ],
+      "cwd": "tools/vfx_studio",
+      "outputs": [
+        "games/coin_rush/assets/effects/goal_explosion.vfx"
+      ],
+      "note": "Provenance RECOVERED 2026-08-13 by regenerating and comparing bytes, not by reading a commit message; only a byte-identical result was accepted. Per-effect rather than `all`, which would also write six presets this game does not use. Writes an untracked `.json` sidecar beside the asset — the studio has no flag to suppress it, and the committed tree never had one. Harmless (assets-check compares the listed outputs) but it dirties the directory on a regen."
+    },
+    {
+      "cmd": [
+        "python",
+        "main.py",
+        "walk_dust",
+        "--out",
+        "../../games/coin_rush/assets/effects"
+      ],
+      "cwd": "tools/vfx_studio",
+      "outputs": [
+        "games/coin_rush/assets/effects/walk_dust.vfx"
+      ],
+      "note": "Provenance RECOVERED 2026-08-13 by regenerating and comparing bytes, not by reading a commit message; only a byte-identical result was accepted. Per-effect rather than `all`, which would also write six presets this game does not use. Writes an untracked `.json` sidecar beside the asset — the studio has no flag to suppress it, and the committed tree never had one. Harmless (assets-check compares the listed outputs) but it dirties the directory on a regen."
+    },
+    {
+      "cmd": [
+        "python",
+        "main.py",
+        "wall_hit_sparks",
+        "--out",
+        "../../games/coin_rush/assets/effects"
+      ],
+      "cwd": "tools/vfx_studio",
+      "outputs": [
+        "games/coin_rush/assets/effects/wall_hit_sparks.vfx"
+      ],
+      "note": "Provenance RECOVERED 2026-08-13 by regenerating and comparing bytes, not by reading a commit message; only a byte-identical result was accepted. Per-effect rather than `all`, which would also write six presets this game does not use. Writes an untracked `.json` sidecar beside the asset — the studio has no flag to suppress it, and the committed tree never had one. Harmless (assets-check compares the listed outputs) but it dirties the directory on a regen."
+    },
+    {
+      "cmd": [
+        "python",
+        "main.py",
+        "character",
+        "--name",
+        "player",
+        "--size",
+        "32",
+        "--out",
+        "../../games/coin_rush/assets/animations"
+      ],
+      "cwd": "tools/animation_studio",
+      "outputs": [
+        "games/coin_rush/assets/animations/player.png",
+        "games/coin_rush/assets/animations/player.atlas",
+        "games/coin_rush/assets/animations/player.anim"
+      ],
+      "note": "Provenance RECOVERED 2026-08-13 by regenerating and comparing bytes, not by reading a commit message; only a byte-identical result was accepted. Three outputs from one command. The sandbox and coin_rush copies are BYTE-IDENTICAL, so this is the same command twice rather than a copy step — recorded per destination so deleting one game cannot orphan the other. Writes an untracked `.json` sidecar beside the asset — the studio has no flag to suppress it, and the committed tree never had one. Harmless (assets-check compares the listed outputs) but it dirties the directory on a regen."
+    },
+    {
+      "cmd": [
+        "python",
+        "main.py",
+        "panel",
+        "--width",
+        "32",
+        "--height",
+        "32",
+        "--style",
+        "round",
+        "--border",
+        "3",
+        "--radius",
+        "8",
+        "--palette",
+        "../../games/coin_rush/assets/palettes/ui.hex",
+        "--out",
+        "../../games/coin_rush/assets/textures/panel"
+      ],
+      "cwd": "tools/ui_studio",
+      "outputs": [
+        "games/coin_rush/assets/textures/panel.png",
+        "games/coin_rush/assets/textures/panel.json"
+      ],
+      "note": "Provenance RECOVERED 2026-08-13 by regenerating and comparing bytes. Solved by INVERTING the generator rather than sweeping it: the transparent corner says style=round, panel.json's slices=8 with margin=max(border,radius) bounds the pair, the highlight pixel colour identified the game's own ui.hex palette, and the ROW that highlight sits on (y=3) gave border=3, leaving radius=8."
+    },
+    {
+      "cmd": [
+        "python",
+        "main.py",
+        "button",
+        "--width",
+        "40",
+        "--height",
+        "28",
+        "--style",
+        "round",
+        "--border",
+        "3",
+        "--radius",
+        "8",
+        "--palette",
+        "../../games/coin_rush/assets/palettes/button.hex",
+        "--out",
+        "../../games/coin_rush/assets/textures/btn"
+      ],
+      "cwd": "tools/ui_studio",
+      "outputs": [
+        "games/coin_rush/assets/textures/btn_normal.png",
+        "games/coin_rush/assets/textures/btn_hover.png",
+        "games/coin_rush/assets/textures/btn_pressed.png",
+        "games/coin_rush/assets/textures/btn.json"
+      ],
+      "note": "Provenance RECOVERED 2026-08-13 by regenerating and comparing bytes. Four outputs (three states + the manifest) from one command. Same geometry as the panel above but button.hex, not ui.hex — the two palettes differ only in their middle entries, which is why the states needed their own palette."
+    },
+    {
+      "cmd": [
+        "python",
+        "main.py",
+        "bake",
+        "ocean",
+        "--base-size",
+        "512",
+        "--out",
+        "../../games/tideworn/assets/env"
+      ],
+      "cwd": "tools/env_studio",
+      "outputs": [
+        "games/tideworn/assets/env/ocean.env.json",
+        "games/tideworn/assets/env/ocean.ktx"
+      ],
+      "slow": true,
+      "note": "Tideworn's OCEAN environment — the same env_studio `ocean` preset water_lab uses (its baked sun disc must match the game's kSunDir, ADR-0055), baked into the game's OWN asset tree because a game never borrows engine test fixtures (games/CLAUDE.md)."
+    },
+    {
+      "cmd": [
+        "python",
+        "main.py",
+        "primitive",
+        "cube",
+        "--name",
+        "boat_hull",
+        "--out",
+        "../../games/tideworn/assets/models"
+      ],
+      "cwd": "tools/model_studio",
+      "outputs": [
+        "games/tideworn/assets/models/boat_hull.gltf"
+      ],
+      "note": "Tideworn's p0 boat stand-in: a model_studio cube, scaled hull-shaped at the node. Replaced by a real hull when the game's art phase starts."
+    },
+    {
+      "cmd": [
+        "python",
+        "main.py",
+        "scene",
+        "fish",
+        "--out",
+        "../../games/tideworn/assets/models"
+      ],
+      "cwd": "tools/model_studio",
+      "outputs": [
+        "games/tideworn/assets/models/fish.gltf"
+      ],
+      "note": "Tideworn p4 marine life: the rigged fish (3-joint spine, looping swim clip). One model for every species — scale and depth band differ at the node, not the asset."
+    },
+    {
+      "cmd": [
+        "python",
+        "main.py",
+        "scene",
+        "diver",
+        "--out",
+        "../../games/tideworn/assets/models"
+      ],
+      "cwd": "tools/model_studio",
+      "outputs": [
+        "games/tideworn/assets/models/diver.gltf"
+      ],
+      "note": "Tideworn p4 third-person body: the box-figure diver (flutter-kick swim + neutral-buoyancy idle). Stand-in art like the boat, replaced when the art phase starts."
+    },
+    {
+      "cmd": [
+        "python",
+        "main.py",
+        "bake",
+        "ocean",
+        "--sun-elevation",
+        "-30",
+        "--sun-azimuth",
+        "0",
+        "--base-size",
+        "512",
+        "--name",
+        "ocean_t000",
+        "--out",
+        "../../games/tideworn/assets/env"
+      ],
+      "cwd": "tools/env_studio",
+      "outputs": [
+        "games/tideworn/assets/env/ocean_t000.env.json",
+        "games/tideworn/assets/env/ocean_t000.ktx"
+      ],
+      "slow": true,
+      "note": "Tideworn's time-of-day ring, keyframe t000 (day fraction 0.000): the SAME physical ocean sky at sun elevation -30 deg, azimuth 0 deg. The eight keys and their day fractions mirror tideworn's content::kSkyRing — change either and change both."
+    },
+    {
+      "cmd": [
+        "python",
+        "main.py",
+        "bake",
+        "ocean",
+        "--sun-elevation",
+        "-12",
+        "--sun-azimuth",
+        "45",
+        "--base-size",
+        "512",
+        "--name",
+        "ocean_t125",
+        "--out",
+        "../../games/tideworn/assets/env"
+      ],
+      "cwd": "tools/env_studio",
+      "outputs": [
+        "games/tideworn/assets/env/ocean_t125.env.json",
+        "games/tideworn/assets/env/ocean_t125.ktx"
+      ],
+      "slow": true,
+      "note": "Tideworn's time-of-day ring, keyframe t125 (day fraction 0.125): the SAME physical ocean sky at sun elevation -12 deg, azimuth 45 deg. The eight keys and their day fractions mirror tideworn's content::kSkyRing — change either and change both."
+    },
+    {
+      "cmd": [
+        "python",
+        "main.py",
+        "bake",
+        "ocean",
+        "--sun-elevation",
+        "4",
+        "--sun-azimuth",
+        "90",
+        "--base-size",
+        "512",
+        "--name",
+        "ocean_t250",
+        "--out",
+        "../../games/tideworn/assets/env"
+      ],
+      "cwd": "tools/env_studio",
+      "outputs": [
+        "games/tideworn/assets/env/ocean_t250.env.json",
+        "games/tideworn/assets/env/ocean_t250.ktx"
+      ],
+      "slow": true,
+      "note": "Tideworn's time-of-day ring, keyframe t250 (day fraction 0.250): the SAME physical ocean sky at sun elevation 4 deg, azimuth 90 deg. The eight keys and their day fractions mirror tideworn's content::kSkyRing — change either and change both."
+    },
+    {
+      "cmd": [
+        "python",
+        "main.py",
+        "bake",
+        "ocean",
+        "--sun-elevation",
+        "30",
+        "--sun-azimuth",
+        "135",
+        "--base-size",
+        "512",
+        "--name",
+        "ocean_t375",
+        "--out",
+        "../../games/tideworn/assets/env"
+      ],
+      "cwd": "tools/env_studio",
+      "outputs": [
+        "games/tideworn/assets/env/ocean_t375.env.json",
+        "games/tideworn/assets/env/ocean_t375.ktx"
+      ],
+      "slow": true,
+      "note": "Tideworn's time-of-day ring, keyframe t375 (day fraction 0.375): the SAME physical ocean sky at sun elevation 30 deg, azimuth 135 deg. The eight keys and their day fractions mirror tideworn's content::kSkyRing — change either and change both."
+    },
+    {
+      "cmd": [
+        "python",
+        "main.py",
+        "bake",
+        "ocean",
+        "--sun-elevation",
+        "52",
+        "--sun-azimuth",
+        "180",
+        "--base-size",
+        "512",
+        "--name",
+        "ocean_t500",
+        "--out",
+        "../../games/tideworn/assets/env"
+      ],
+      "cwd": "tools/env_studio",
+      "outputs": [
+        "games/tideworn/assets/env/ocean_t500.env.json",
+        "games/tideworn/assets/env/ocean_t500.ktx"
+      ],
+      "slow": true,
+      "note": "Tideworn's time-of-day ring, keyframe t500 (day fraction 0.500): the SAME physical ocean sky at sun elevation 52 deg, azimuth 180 deg. The eight keys and their day fractions mirror tideworn's content::kSkyRing — change either and change both."
+    },
+    {
+      "cmd": [
+        "python",
+        "main.py",
+        "bake",
+        "ocean",
+        "--sun-elevation",
+        "30",
+        "--sun-azimuth",
+        "225",
+        "--base-size",
+        "512",
+        "--name",
+        "ocean_t625",
+        "--out",
+        "../../games/tideworn/assets/env"
+      ],
+      "cwd": "tools/env_studio",
+      "outputs": [
+        "games/tideworn/assets/env/ocean_t625.env.json",
+        "games/tideworn/assets/env/ocean_t625.ktx"
+      ],
+      "slow": true,
+      "note": "Tideworn's time-of-day ring, keyframe t625 (day fraction 0.625): the SAME physical ocean sky at sun elevation 30 deg, azimuth 225 deg. The eight keys and their day fractions mirror tideworn's content::kSkyRing — change either and change both."
+    },
+    {
+      "cmd": [
+        "python",
+        "main.py",
+        "bake",
+        "ocean",
+        "--sun-elevation",
+        "4",
+        "--sun-azimuth",
+        "270",
+        "--base-size",
+        "512",
+        "--name",
+        "ocean_t750",
+        "--out",
+        "../../games/tideworn/assets/env"
+      ],
+      "cwd": "tools/env_studio",
+      "outputs": [
+        "games/tideworn/assets/env/ocean_t750.env.json",
+        "games/tideworn/assets/env/ocean_t750.ktx"
+      ],
+      "slow": true,
+      "note": "Tideworn's time-of-day ring, keyframe t750 (day fraction 0.750): the SAME physical ocean sky at sun elevation 4 deg, azimuth 270 deg. The eight keys and their day fractions mirror tideworn's content::kSkyRing — change either and change both."
+    },
+    {
+      "cmd": [
+        "python",
+        "main.py",
+        "bake",
+        "ocean",
+        "--sun-elevation",
+        "-12",
+        "--sun-azimuth",
+        "315",
+        "--base-size",
+        "512",
+        "--name",
+        "ocean_t875",
+        "--out",
+        "../../games/tideworn/assets/env"
+      ],
+      "cwd": "tools/env_studio",
+      "outputs": [
+        "games/tideworn/assets/env/ocean_t875.env.json",
+        "games/tideworn/assets/env/ocean_t875.ktx"
+      ],
+      "slow": true,
+      "note": "Tideworn's time-of-day ring, keyframe t875 (day fraction 0.875): the SAME physical ocean sky at sun elevation -12 deg, azimuth 315 deg. The eight keys and their day fractions mirror tideworn's content::kSkyRing — change either and change both."
+    },
+    {
+      "_why": "The engine's brand kit, plus the two runtime consumers of it. One command writes all of it so the mark, the wordmark, the icon blobs the engine EMBEDS and the splash each game loads stay one geometry -- ui_studio's logo generator emits every form from the same shapes, and a hand-exported file would drift from the code that claims to produce it. The .rgba blobs are raw pixels because the window is created before the file system exists (GEA 6.1). The Android launcher icon joins this command for the same reason the embedded .rgba blobs do: the mark is a VECTOR, so each density is DRAWN at its own size instead of resampled from one export, and one rule keeps every form of the logo on one geometry. The WIREFRAME twins (2026-08-26) are written by the same command for the same reason the rest is: the splash's wireframe-to-solid beat cross-fades two images, and they register pixel for pixel only because one geometry produced both at one size. A hand-outlined variant would drift the moment the mark changed. The SANDBOX copy exists for examples/splash_showcase, which tunes the presets against the same two images a game will load rather than against generated stand-ins.",
+      "cmd": [
+        "python",
+        "main.py",
+        "brand",
+        "--out",
+        "../../docs/brand",
+        "--icons-out",
+        "../../engine/app/icons",
+        "--android-icons-out",
+        "../../tools/android/res",
+        "--splash-out",
+        "../../sandbox/assets/textures",
+        "--splash-out",
+        "../../games/coin_rush/assets/textures",
+        "--splash-out",
+        "../../games/lantern/assets/textures",
+        "--splash-out",
+        "../../games/tideworn/assets/textures"
+      ],
+      "cwd": "tools/ui_studio",
+      "outputs": [
+        "docs/brand/aether-icon-128.png",
+        "docs/brand/aether-icon-16.png",
+        "docs/brand/aether-icon-256.png",
+        "docs/brand/aether-icon-32.png",
+        "docs/brand/aether-icon-48.png",
+        "docs/brand/aether-lockup-mono.png",
+        "docs/brand/aether-lockup-mono.svg",
+        "docs/brand/aether-lockup-on-dark.png",
+        "docs/brand/aether-lockup-on-dark.svg",
+        "docs/brand/aether-lockup-on-light.png",
+        "docs/brand/aether-lockup-on-light.svg",
+        "docs/brand/aether-mark-mono.png",
+        "docs/brand/aether-mark-mono.svg",
+        "docs/brand/aether-mark-on-dark.png",
+        "docs/brand/aether-mark-on-dark.svg",
+        "docs/brand/aether-mark-on-light.png",
+        "docs/brand/aether-mark-on-light.svg",
+        "docs/brand/aether-mark-wire.png",
+        "docs/brand/aether-mark-wire.svg",
+        "docs/brand/aether-stacked-on-dark.png",
+        "docs/brand/aether-stacked-on-dark.svg",
+        "docs/brand/aether-stacked-on-light.png",
+        "docs/brand/aether-stacked-on-light.svg",
+        "docs/brand/aether-stacked-wire.png",
+        "docs/brand/aether-stacked-wire.svg",
+        "docs/brand/aether-wordmark-on-dark.png",
+        "docs/brand/aether-wordmark-on-dark.svg",
+        "docs/brand/aether-wordmark-on-light.png",
+        "docs/brand/aether-wordmark-on-light.svg",
+        "engine/app/icons/icon_16.rgba",
+        "engine/app/icons/icon_32.rgba",
+        "engine/app/icons/icon_48.rgba",
+        "games/coin_rush/assets/textures/splash-wire.png",
+        "games/coin_rush/assets/textures/splash.png",
+        "games/lantern/assets/textures/splash-wire.png",
+        "games/lantern/assets/textures/splash.png",
+        "games/tideworn/assets/textures/splash-wire.png",
+        "games/tideworn/assets/textures/splash.png",
+        "sandbox/assets/textures/splash-wire.png",
+        "sandbox/assets/textures/splash.png",
+        "tools/android/res/mipmap-hdpi/ic_launcher.png",
+        "tools/android/res/mipmap-mdpi/ic_launcher.png",
+        "tools/android/res/mipmap-xhdpi/ic_launcher.png",
+        "tools/android/res/mipmap-xxhdpi/ic_launcher.png",
+        "tools/android/res/mipmap-xxxhdpi/ic_launcher.png"
+      ]
+    },
+    {
+      "_why": "Hearthfield's flock (H5). A two-joint hen with idle and peck clips — the third consumer of Phase E's skeletal column, after lantern's walker and tideworn's fish. The game owns it rather than borrowing either: games/CLAUDE.md forbids a game reaching into another's assets.",
+      "cmd": [
+        "python",
+        "main.py",
+        "scene",
+        "chicken",
+        "--out",
+        "../../games/hearthfield/assets/models"
+      ],
+      "cwd": "tools/model_studio",
+      "outputs": [
+        "games/hearthfield/assets/models/chicken.gltf"
+      ]
+    },
+    {
+      "_why": "Rain, as a LOOP. GEA §14.4.1 puts rainfall on the 2D (non-positional) side of the audio world — it is everywhere the listener is — so this is played flat rather than spatialised. REWRITTEN 2026-08-29 onto the `rain` generator, from `noise` with an ADSR. The old rule's reasoning was right and its mechanism did the opposite: it asked for a near-flat envelope, and Envelope.release began the instant decay ended, so 3.0 s of file held 0.8 s of sound and 2.2 s of DIGITAL SILENCE — audible as whoosh-silence-whoosh, forever, and invisible to every test in the studio because silence clips nothing, decodes fine and repeats byte-identically. 8 s because 3 is short enough that the ear locks onto the period; the timbre knobs default in the generator, where the reasoning for them is.",
+      "cmd": [
+        "python",
+        "main.py",
+        "rain",
+        "--seconds",
+        "8.0",
+        "--seed",
+        "20260829",
+        "--out",
+        "../../games/hearthfield/assets/audio/rain"
+      ],
+      "cwd": "tools/audio_studio",
+      "outputs": [
+        "games/hearthfield/assets/audio/rain.wav"
+      ]
+    },
+    {
+      "_why": "The mill's rumble — the 3D half of spec check 8, \"the mill is heard from the direction of the mill\". 62 Hz triangle: low enough to read as machinery rather than as a note, and low frequencies are what survive distance (GEA §14.1.3.2). TRULY flat since 2026-08-29, where it previously said \"near-flat\" and delivered 0.6 s of tone followed by 1.4 s of silence — the same Envelope defect as the rain, found with it. All four segments are zero so the sustain fills the whole 2 s, and 62 Hz x 2.0 s is exactly 124 cycles, so the loop closes on the same phase it opened and needs no fade to hide a click.",
+      "cmd": [
+        "python",
+        "main.py",
+        "tone",
+        "--freq",
+        "62",
+        "--wave",
+        "triangle",
+        "--seconds",
+        "2.0",
+        "--attack",
+        "0.0",
+        "--decay",
+        "0.0",
+        "--sustain",
+        "1.0",
+        "--release",
+        "0.0",
+        "--out",
+        "../../games/hearthfield/assets/audio/mill"
+      ],
+      "cwd": "tools/audio_studio",
+      "outputs": [
+        "games/hearthfield/assets/audio/mill.wav"
+      ]
+    },
+    {
+      "_why": "The plot surface. Furrows are a MATERIAL, not geometry (art bible 6.1): tile.glb spends its 40 triangles on the bevel, and the 0.08 m gap between neighbours already draws the grid. Calibrated to 0.10-0.28 linear, the band for dry earth, and left LIGHT on purpose because rain darkens it at runtime through wetness.",
+      "cmd": [
+        "python",
+        "main.py",
+        "generate",
+        "tilled",
+        "--width",
+        "128",
+        "--height",
+        "128",
+        "--seed",
+        "20260826",
+        "--albedo-range",
+        "0.10",
+        "0.28",
+        "--out",
+        "../../games/hearthfield/assets/textures/tilled_soil.png"
+      ],
+      "cwd": "tools/pixel_studio",
+      "outputs": [
+        "games/hearthfield/assets/textures/tilled_soil.png"
+      ]
+    },
+    {
+      "_why": "Unbought land, and the MAJORITY surface: a fresh farm owns 4 plots of 576, so this is 99% of what the board looks like while tilled_soil.png is the 1% case. It had no art at all until 2026-08-28 - hf:locked was a flat colour - which is why the board read as a faint lattice. The difference from tilled is STRUCTURE rather than hue: furrows mean WORKED, so this is clods and loose stones with no direction at all. Calibrated 0.08-0.24 linear against tilled's 0.10-0.28, so buying a plot visibly enriches it - a locked plot that outshone a bought one would invert the reward.",
+      "cmd": [
+        "python",
+        "main.py",
+        "generate",
+        "earth",
+        "--width",
+        "128",
+        "--height",
+        "128",
+        "--seed",
+        "20260828",
+        "--albedo-range",
+        "0.08",
+        "0.24",
+        "--out",
+        "../../games/hearthfield/assets/textures/bare_earth.png"
+      ],
+      "cwd": "tools/pixel_studio",
+      "outputs": [
+        "games/hearthfield/assets/textures/bare_earth.png"
+      ]
+    },
+    {
+      "_why": "The path slab (art bible 8): 6.5 x 1.1 m, flush so it casts nothing. Geometry and texture are one rule for the same reason `field` is - the UV repeat and the image it repeats must not drift apart. Replaced a scaled grey cube, which had no UVs to sample with.",
+      "cmd": [
+        "python",
+        "main.py",
+        "scene",
+        "track",
+        "--textures",
+        "--out",
+        "../../games/hearthfield/assets/models"
+      ],
+      "cwd": "tools/model_studio",
+      "outputs": [
+        "games/hearthfield/assets/models/track.gltf",
+        "games/hearthfield/assets/models/textures/track_path.png"
+      ]
+    },
+    {
+      "_why": "The sky world's hub island (docs/plans/2026-08-26-hearthfield-sky-world.md), replacing the 120 m slab. PARAMETRIC rather than sculpted in Blender on purpose: the design calls for MANY islands, so a recipe is paid once where a sculpt is paid per island, and a recipe keeps regenerable provenance where a sculpt gets the weaker committed-.blend-plus-pinned-hash treatment.",
+      "cmd": [
+        "python",
+        "main.py",
+        "scene",
+        "island",
+        "--out",
+        "../../games/hearthfield/assets/models"
+      ],
+      "cwd": "tools/model_studio",
+      "outputs": [
+        "games/hearthfield/assets/models/island.gltf"
+      ]
+    },
+    {
+      "_why": "The sky world's cloud sea (s2). GEOMETRY rather than a skybox, and that is forced: render::Skybox ignores orthographic cameras because a parallel projection gives every pixel one view direction, so a cube map sampled by that ray is a single flat colour. Geometry is also the better answer here - real depth means real parallax when the board pans. Baked into one mesh for the reason the treeline is: scenery spread across depth lands 1-2 instances per bucket and never merges.",
+      "cmd": [
+        "python",
+        "main.py",
+        "scene",
+        "clouds",
+        "--out",
+        "../../games/hearthfield/assets/models"
+      ],
+      "cwd": "tools/model_studio",
+      "outputs": [
+        "games/hearthfield/assets/models/clouds.gltf"
+      ]
+    },
+    {
+      "_why": "The mill (art bible 6.4), 168 triangles of primitives against a 900 allowance. AUTHORED here rather than reduced from the 1,977,962-triangle Meshy sculpt, and that is a measurement: on 2026-08-27 collapse decimation gouged the sail blades where their carved lattice had been, voxel-remesh-then-decimate cleaned the blades but dissolved the conical roof into the tower, and a triangle ladder put the roof and chimney back only around 8,000 - which the board cannot pay, because a caster submits its triangles twice. The sculpt's contribution was the CONCEPT ART. Being a rule rather than a pinned pair also restores what ADR-0031 wants: re-running the command reproduces the bytes. Carries the first textures on a Hearthfield BUILDING: masonry courses on the tower and a PAINTED lattice on the sails, which is what §6.4 means by solid blades with the frame painted on. The roof keeps a flat colour deliberately - its shingle courses are the tiers, so a third texture would pay for detail already in the silhouette.",
+      "cmd": [
+        "python",
+        "main.py",
+        "scene",
+        "mill",
+        "--textures",
+        "--out",
+        "../../games/hearthfield/assets/models"
+      ],
+      "cwd": "tools/model_studio",
+      "outputs": [
+        "games/hearthfield/assets/models/mill.gltf",
+        "games/hearthfield/assets/models/textures/mill_stone.png",
+        "games/hearthfield/assets/models/textures/mill_roof.png",
+        "games/hearthfield/assets/models/textures/mill_timber.png"
+      ]
+    },
+    {
+      "_why": "The field's post-and-rail boundary (field redesign f2). The 24 m board of bare earth simply STOPPED, which reads as a lattice rather than a farm. Replaces a single-sided run of FIVE entities authored when the board was 8 m across, and is CHEAPER than what it replaced: baking the perimeter into one mesh took the board 54 draws -> 46, because five scattered entities never form an instance run (art bible 7.1 measured that effect at 262 draws for 68 of them). 540 triangles, one material, and a gate on +Z where the track enters at x = 3.4. model_studio rather than Blender per ADR-0141: the forms are boxes, so it stays regenerable instead of becoming a pinned blob plus a committed .blend.",
+      "cmd": [
+        "python",
+        "main.py",
+        "scene",
+        "field_fence",
+        "--out",
+        "../../games/hearthfield/assets/models"
+      ],
+      "cwd": "tools/model_studio",
+      "outputs": [
+        "games/hearthfield/assets/models/field_fence.gltf"
+      ]
+    },
+    {
+      "_why": "The two crops (art bible 6.2/6.3), replacing models/cone.gltf. ONE MESH PER CROP SERVES EVERY GROWTH STAGE, because growth is a per-instance uniform scale - which is why a stage costs no draw call and why the silhouette has to survive being squashed to 15%. SILHOUETTE, NOT COLOUR, tells them apart: board.cpp overrides the material to say ripe-versus-growing, so colour is entirely spent on the genre's core read. Wheat is a tight 0.27 m tuft at 0.68 m; corn a 0.52 m leaf spread at 0.80 m. Corn cannot go WIDER - 0.52 already approaches the 0.66 m pick box the sim derives from kCropRadius - so the contrast was built by tightening wheat instead. 60 and 54 triangles against a DERIVED budget of ~72 (not the art bible's 150, which was set for a 225-plot board and projected without doubling for casters): 576 crops x 2 passes against what a 142,000 bound leaves over the 58,956-triangle rest of the scene.",
+      "cmd": [
+        "python",
+        "main.py",
+        "scene",
+        "wheat",
+        "--out",
+        "../../games/hearthfield/assets/models"
+      ],
+      "cwd": "tools/model_studio",
+      "outputs": [
+        "games/hearthfield/assets/models/wheat.gltf"
+      ]
+    },
+    {
+      "_why": "The second crop. See the wheat rule above for the shared reasoning - one mesh per growth stage, silhouette over colour, and the derived triangle budget.",
+      "cmd": [
+        "python",
+        "main.py",
+        "scene",
+        "corn",
+        "--out",
+        "../../games/hearthfield/assets/models"
+      ],
+      "cwd": "tools/model_studio",
+      "outputs": [
+        "games/hearthfield/assets/models/corn.gltf"
+      ]
+    },
+    {
+      "_why": "The chicken coop (art bible 6.5), replacing a 1.3 m cube. 136 triangles and three materials against allowances of 700 and 3. IT REFERENCES THE MILL'S TEXTURES for walls and timber rather than generating its own, which is 6.5's SIBLINGS RULE made literal - two files from one recipe would be identical today and diverge the first time either was retuned. Only the roof is new: warm brown shingle against the mill's dark red, which 6.5 names as the one place each building takes its own accent. Two departures recorded in the scene: the roof is a four-segment HIP rather than the briefed gable, because that echoes the mill's cone and a hip is a revolve where a gable needs a custom prism; and the walls were lowered 1.15 -> 0.95 m because the rise left under a 2.20 m ridge read as a flat plate on a box.",
+      "cmd": [
+        "python",
+        "main.py",
+        "scene",
+        "coop",
+        "--textures",
+        "--out",
+        "../../games/hearthfield/assets/models"
+      ],
+      "cwd": "tools/model_studio",
+      "outputs": [
+        "games/hearthfield/assets/models/coop.gltf",
+        "games/hearthfield/assets/models/textures/coop_roof.png"
+      ]
+    }
+  ],
+  "files_by_section": {
+    "authored": {
+      "games/coin_rush/assets/config.json": "authored app config",
+      "games/lantern/assets/config.json": "authored app config",
+      "games/coin_rush/assets/palettes/ui.hex": "authored palette (a list of hex colours, one per line)",
+      "games/coin_rush/assets/palettes/button.hex": "authored palette",
+      "games/lantern/assets/worlds/spire.world.json": "authored world — the game's level, hand-built"
+    },
+    "provenance_lost": {
+      "games/coin_rush/assets/audio/coin.wav": {
+        "why": "audio_studio cannot be the source: the asset landed 2026-07-21 and audio_studio 2026-08-08, and the studio writes MONO while this is 48 kHz STEREO (0.200 s). Some earlier ad-hoc script, not recorded.",
+        "sha256": "9eb805b091c31b5c4f929c10e8c5a46fa7fbf6531711c5504fedfa8778e1a9cd"
+      },
+      "games/coin_rush/assets/audio/ambient.wav": {
+        "why": "same as coin.wav — predates audio_studio by 18 days and is stereo (2.000 s)",
+        "sha256": "3f2594265f84c924ad4a263c84dd3e0d3255e4bfd271e5b4273db4c84ae7d75b"
+      },
+      "games/coin_rush/assets/textures/ocean.png": {
+        "why": "pixel_studio `water` at 256x64 is certainly the generator — its output is a 4-entry ramp (deep/base/ripple/sparkle) and the file has exactly four colours — but the PALETTE it was given is gone: #0b486b/#4297bc/#c7e8ea/#d4f2f5 appear in NO palette file in the repo, as hex text or in the Resurrect 64 PNG. Same shape as the coin atlases: tool survives, input does not.",
+        "sha256": "a9dab669d3e5a469a5e9b4164a82edce02353e2a2c12efdf1326871eeb643030"
+      }
+    },
+    "authored_with_source": {
+      "games/hearthfield/assets/models/tile.glb": {
+        "source": "games/hearthfield/assets/models/src/tile.blend",
+        "tool": "Blender 5.2.0 LTS, Khronos glTF Blender I/O v5.2.39, export_format=GLB",
+        "why": "Hearthfield's soil tile, the first Blender-authored asset in the repo. GLB rather than the embedded .gltf everything else uses because Blender 5.2 REMOVED GLTF_EMBEDDED -- its only options are GLB and GLTF_SEPARATE -- and one file is one hash to pin (event:2026-08-25#93).",
+        "sha256": "d08fbad9f8a00b52a0763bb72ed7be21abdb94b9c8eac6c8d94e1e347156bb3b",
+        "source_sha256": "612223ce3eea778a71b73ddca28db03c2053f6fb1bca05ffa02b383bd12c997f"
+      },
+      "games/hearthfield/assets/models/treeline.glb": {
+        "source": "games/hearthfield/assets/models/src/apron.blend",
+        "tool": "Blender 5.2.0 LTS, Khronos glTF Blender I/O v5.2.39, export_format=GLB",
+        "why": "The far apron's treeline: 64 trees BAKED INTO ONE MESH, each a nine-blob canopy cluster modelled from a 2026-08-25 concept image. Baked rather than instanced because it was measured - 68 apron entities cost 216 extra draws, since a ring spread over ~60 m of depth lands 1-2 instances per depth bucket (kOpaqueDepthBuckets=32) against kMinInstanceRun=2.",
+        "sha256": "f3cd13a9725ccfd0bce9d1aeceffaa93116b2212e696ad150f87ce68ac7e378f",
+        "source_sha256": "f3a34be04fa4a6064418f1f79938d7e2fe9354ed65dee0baaa6a6c1bd86c46ca"
+      },
+      "games/hearthfield/assets/models/hub_island.glb": {
+        "source": "games/hearthfield/assets/models/src/hub_island.blend",
+        "tool": "Blender 5.2.0 LTS, Khronos glTF Blender I/O v5.2.39, export_format=GLB",
+        "why": "The sky world's hub island. REBUILT 2026-08-28 from a SECOND Meshy sculpt (1,976,220 -> 7,626 triangles) because the first one's middle was a river gorge, forcing the farm pad 14 m off-centre and propagating that offset into camera.hpp, farm.world.json and model_contract.json. THE METHOD IS NOW COMMITTED: tools/island_retopo.py runs the whole sequence headless (weld -> quadriflow -> bake -> deepen keel -> re-origin -> flatten pad -> export), where the previous island's identical steps were driven ad-hoc through the Blender MCP and only the RESULT survived. PROVENANCE IS STILL WEAKER THAN THIS SECTION USUALLY MEANS, the same way treeline.glb's is: the 81 MB source download lives in gitignored tests/assets/downloads/ and cannot be committed, so both pinned halves move together and prove the bytes unchanged while proving nothing about where the geometry came from. What HAS changed is that the transformation between them is no longer folklore.",
+        "sha256": "063163ad9dfce1e6a4cfbe39551b381ddd30b4d5f083c21aaab127fc7e99eb35",
+        "source_sha256": "5e7ec12b844c5de33d9685262706008aceac91df20572fcb7420f97afeffe989"
+      }
+    }
+  }
+}

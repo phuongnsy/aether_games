@@ -1,0 +1,92 @@
+# How the games are built, run and debugged. ADR-0170 moved them out of the
+# engine and left the build as a paragraph of prose in CLAUDE.md; this is that
+# paragraph, typed once.
+#
+# THE TOOLCHAIN IS THE ENGINE'S, and this manifest deliberately does not own a
+# copy of it. conan (bgfx from source), the pinned cmake/ninja, the conda prefix
+# `find_package` searches, the compiler `configure.py` picks: every task here
+# delegates into `../aether`'s own pixi environment through `tools/dev.py`, so
+# there is ONE solve. Two solves drift, and a games tree compiled by a different
+# toolchain than the aether it links is the ADR-0171 crash from the other
+# direction.
+#
+#   pixi run configure         # Debug (or Release / Asan / Tsan / DevOff)
+#   pixi run build             # extra args go to `cmake --build`
+#   pixi run test              # the whole suite; `test-game coin_rush` for one
+#   pixi run coin_rush         # build, then play it
+#   pixi run debug lantern     # build, then the same binary under gdb
+#
+# The engine is found the way CMakeLists.txt finds it: `AETHER_DIR`, else the
+# sibling checkout.
+[workspace]
+channels = ["conda-forge"]
+name = "aether_games"
+# The engine's two rows, because that is what these tasks delegate into and
+# nothing here is platform-specific -- except `debug`, which needs a gdb on
+# PATH and therefore does not exist on win-64. Said plainly rather than
+# discovered: a platform row is a claim that someone can work there.
+platforms = ["linux-64", "win-64"]
+version = "0.1.0"
+
+[dependencies]
+# The ONLY dependency, and that is the point of this file: python runs
+# tools/dev.py, which runs the engine's scripts in the engine's environment.
+# Anything added here that the BUILD uses is a pin that can disagree with
+# aether's.
+python = ">=3.10"
+
+[tasks]
+# Configure this repo's tree: `_build/<compiler>/<Config>`, with `_build/current`
+# pointed at it. The engine is configured as a subdirectory of it, so the tree
+# holds both and `test` below sees both suites.
+# Usage: pixi run configure [Debug|Release|Asan|Tsan|DevOff]   (Debug default)
+configure = { cmd = "python tools/dev.py configure", description = "conan + cmake, into _build/<compiler>/<Config> [Debug|Release|Asan|...]" }
+# Build the configured tree. Extra args reach `cmake --build`, which is how you
+# build one game: `pixi run build --target lantern`.
+build = { cmd = "python tools/dev.py build", description = "build the configured tree (extra args go to cmake --build)" }
+# Engine + games, in parallel. See dev.py's `test` for why it is not the
+# engine's serial spelling.
+test = { cmd = "python tools/dev.py test", depends-on = [
+  "build",
+], description = "the whole suite: the engine's cases and the games'" }
+# The `headless` set: no case in it creates a window, so it is the set to run
+# with no display and the one `sanitize` uses upstream. It became honest here on
+# 2026-09-04, when the other three games got the label_tests.cmake coin_rush
+# already had — before that it quietly meant "the engine, and coin_rush".
+test-headless = { cmd = "python tools/dev.py test-headless", depends-on = [
+  "build",
+], description = "only the cases that need no display (1544 of 1579)" }
+# One game's cases plus its seam/layout tests — the inner loop while working on
+# it. Usage: pixi run test-game coin_rush
+test-game = { cmd = "python tools/dev.py test-game", depends-on = [
+  "build",
+], description = "one game's tests only: test-game <coin_rush|lantern|tideworn|hearthfield>" }
+# Any executable in the tree by bare name, built first: the games, their test
+# binaries, and the engine's own apps that this tree also builds (`run sandbox`).
+# Usage: pixi run run coin_rush --level 2
+run = { cmd = "python tools/dev.py run", depends-on = [
+  "build",
+], description = "build, then run any binary in the tree by bare name: run <name> [args]" }
+# The same, under gdb (AETHER_DEBUGGER overrides). Linux only — see the
+# platforms comment. Usage: pixi run debug hearthfield
+debug = { cmd = "python tools/dev.py debug", depends-on = [
+  "build",
+], description = "the same, under gdb: debug <name> [args] (needs a gdb on PATH)" }
+
+# The four games, so `pixi task list` answers "what is in this repo?" and each
+# needs no name typed twice. They take the capture harness's named options:
+# `pixi run coin_rush --width 1280 --height 720 --frames 120 --capture shot.png`.
+coin_rush = { cmd = "python tools/dev.py run coin_rush", depends-on = [
+  "build",
+], description = "play Coin Rush" }
+lantern = { cmd = "python tools/dev.py run lantern", depends-on = [
+  "build",
+], description = "play Lantern" }
+tideworn = { cmd = "python tools/dev.py run tideworn", depends-on = [
+  "build",
+], description = "play Tideworn" }
+# hearthfield started sim-only (no app/, no executable) and grew one at H1 —
+# CLAUDE.md's "staging order, not a standing exception".
+hearthfield = { cmd = "python tools/dev.py run hearthfield", depends-on = [
+  "build",
+], description = "play Hearthfield" }

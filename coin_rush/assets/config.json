@@ -1,0 +1,12 @@
+{
+  "window": {
+    "title": "aether - Coin Rush"
+  },
+  "reference_size": 720,
+  "clear_color": "#140f1e",
+  "splash": {
+    "enabled": true,
+    "preset": "cinematic",
+    "seconds": 2.0
+  }
+}

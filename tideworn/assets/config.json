@@ -1,0 +1,10 @@
+{
+  "window": {
+    "title": "aether - tideworn"
+  },
+  "reference_size": 720,
+  "clear_color": "#0a1420",
+  "splash": {
+    "enabled": true
+  }
+}

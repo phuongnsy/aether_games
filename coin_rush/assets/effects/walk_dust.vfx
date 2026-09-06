@@ -1,0 +1,2 @@
+effect name="walk_dust" emitters=1
+emitter name="scuff" mode=burst rate=200 count=6 capacity=48 lifetime=0.4 lifetime_var=0.1 gravity=0,-90 dir=0,1 spread=1 speed=12,36 jitter=2,1 start_color=0.78,0.66,0.48,0.6 end_color=0.78,0.66,0.48,0 start_size=4 end_size=1 texture="smoke.png" layer=380 blend=alpha seed=2963147900

@@ -1,0 +1,60 @@
+{
+  "vfx_studio": true,
+  "effect": {
+    "name": "coin_pickup",
+    "emitters": [
+      {
+        "name": "sparkle",
+        "mode": "burst",
+        "rate": 200.0,
+        "burst_count": 16,
+        "capacity": 32,
+        "lifetime": 0.6,
+        "lifetime_variance": 0.15,
+        "gravity": [
+          0.0,
+          -60.0
+        ],
+        "direction": [
+          0.0,
+          1.0
+        ],
+        "spread": 1.0,
+        "speed_min": 60.0,
+        "speed_max": 150.0,
+        "jitter": [
+          2.0,
+          2.0
+        ],
+        "start_color": [
+          1.0,
+          0.84,
+          0.32,
+          1.0
+        ],
+        "end_color": [
+          1.0,
+          0.6,
+          0.1,
+          0.0
+        ],
+        "start_size": 5.0,
+        "end_size": 0.5,
+        "texture": "glow.png",
+        "layer": 430,
+        "blend": "additive",
+        "seed": 4212499705
+      }
+    ],
+    "children": [],
+    "events": [
+      {
+        "at": "start",
+        "name": "play_sound",
+        "data": {
+          "clip": "coin"
+        }
+      }
+    ]
+  }
+}

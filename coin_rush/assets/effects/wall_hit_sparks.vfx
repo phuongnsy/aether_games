@@ -1,0 +1,2 @@
+effect name="wall_hit_sparks" emitters=1
+emitter name="spray" mode=burst rate=200 count=10 capacity=32 lifetime=0.35 lifetime_var=0.1 gravity=0,-320 dir=0,1 spread=2.4 speed=90,220 jitter=1,1 start_color=1,0.95,0.6,1 end_color=1,0.5,0.1,0 start_size=2.5 end_size=0.3 texture="glow.png" layer=430 blend=additive seed=2992320964

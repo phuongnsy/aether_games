@@ -1,0 +1,75 @@
+{
+  "_comment": [
+    "THE SMALLHOLDING - and since sky world s3 it is a ZONE, not the world. What",
+    "is here is what stands ON the hub island and would not exist on any other:",
+    "the steading, its boundary and its lane. The island's own ground and tree",
+    "cover are worlds/islands/hub.world.json, and the camera, sun and sky are",
+    "worlds/persistent.world.json, which travel does not unload.",
+    "",
+    "THE SPLIT IS BY LIFETIME, NOT BY SIZE, and it is what makes s4 possible: a",
+    "satellite gets an island chunk and NO zone, so `an island with nothing built",
+    "on it yet` is the absence of a file rather than a special case in app/.",
+    "",
+    "The plots are NOT here on purpose: the plot table already lives in the sim's",
+    "WorldView, and authoring 576 plot entities would be a second copy of it with",
+    "the sim's copy the one that decides gameplay. view/ mirrors the sim onto the",
+    "scene instead (docs/plans/2026-08-23-hearthfield-h1-board.md 3a). Units are",
+    "METRES, like lantern and tideworn; one plot is a 1 m cell."
+  ],
+  "name": "farm",
+  "entities": [
+    {
+      "_comment": "THE MILL IS NOW A LOCATOR AND NOTHING ELSE (H7). It was a static_mesh until building placement existed; now every building is drawn by view/Buildings from the sim's own table, because a farm has one kind of building and should have one code path for drawing it. What survives here is exactly the role GEA 16.3.3.1 describes and the only thing app/ ever took from it \u2014 'defining the location at which a particle effect or audio effect should originate', which is the mill's sound. The POSITION moved 6.4 -> 6.0 to sit on the centre of build cell (13,7): the lattice decides where things stand, and 6.4 was 0.4 m off any cell, near enough to look right and far enough that the reserved footprint would not have sat under the mesh. runtime::kStarterMillCell is the other half of that pair and a test asserts they agree.",
+      "type": "empty",
+      "name": "mill",
+      "pos": [
+        14.0,
+        0.9,
+        0
+      ]
+    },
+    {
+      "_comment": "THE COOP (art bible 6.5), authored in model_studio and replacing a 1.3 m cube. 172 triangles, three materials. TWO PLACEHOLDER HABITS DIE HERE and both were silent: `scale: 1.3` is gone because the model carries its own metres, and `pos.y` went 0.65 -> 0 because that lift existed ONLY to raise a mesh centred in its cube. Leaving either would be wrong by half the building's height and would look entirely plausible on screen (ADR-0135). NO `color` either - engine_spawners builds a tint material when one is present and a tint REPLACES the model's, throwing away three textures. THE ENTRY FACES -Z because the `yard` locator is 2.2 m that way and birds coming out of a blank wall do not read as belonging to the building. Walls and timber are the MILL's textures referenced as-is, which is 6.5's siblings rule made literal; only the roof differs, warm brown against the mill's dark red.",
+      "type": "static_mesh",
+      "name": "coop",
+      "model": "models/coop.gltf",
+      "pos": [
+        -14.0,
+        0.0,
+        0.0
+      ],
+      "roughness": 0.8
+    },
+    {
+      "_comment": "The yard the flock mills about in. An 'empty' \u2014 GEA 16.3.3's locator spawner, a named point and nothing else. The BIRDS are not authored: their count is content::kFlockSize, decided by the sim, and a thing the sim counts is not authored content (the same line H1 drew for the plots).",
+      "type": "empty",
+      "name": "yard",
+      "pos": [
+        -14.4,
+        0,
+        -2.2
+      ]
+    },
+    {
+      "_comment": "THE FIELD'S BOUNDARY (field redesign f2). Replaces a single post-and-rail RUN on the +Z side, authored when the board was 8 m across; at 24 m the plots simply stopped, and a brown rectangle with no edge reads as a lattice rather than as a farm. ONE BAKED MESH, not one entity per post: art bible 7.1 measured 68 scattered apron entities at 262 draws against a bound of 70, because the opaque sort buckets by depth and a run spread across the board never forms an instance run. 540 triangles, one material, and a GATE on +Z where the track enters at x = 3.4 - a fence with no way in is a pen. Authored in model_studio from primitives (ADR-0141) so it stays regenerable rather than becoming a pinned blob. NO `color` here: the timber is in the material, and a tint would REPLACE it.",
+      "type": "static_mesh",
+      "model": "models/field_fence.gltf",
+      "pos": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "_comment": "The lane past the farm: a flat slab, flush enough not to cast. Authored at TRUE SIZE by model_studio (6.5 x 1.1 m) so it carries the UVs its cobble texture repeats over - no scale, and no color/roughness, because either would replace the model's own material with a flat tint. z = 8.6 puts it OUTSIDE the plots: the board is centred on the origin and a 15-column one reaches +-7.46 m, which is why this sat invisible under the tiles at its old z = 5.0. It is beyond the fence (z = 5.6) too, so the two do not fight. A board past ~17 columns will swallow it again - the whole steading is authored for a farm of about this size.",
+      "type": "static_mesh",
+      "model": "models/track.gltf",
+      "pos": [
+        3.4,
+        0.01,
+        16.6
+      ],
+      "casts_shadows": false
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "name": "light_bump",
+  "shaders": [
+    {
+      "name": "light_bump.fs",
+      "stage": "fragment",
+      "samplers": [
+        {
+          "name": "s_texColor",
+          "slot": 0,
+          "doc": "normal G-buffer: rgb=world normal, a=occluder"
+        }
+      ],
+      "uniforms": [
+        {
+          "name": "u_light",
+          "type": "vec4",
+          "default": [
+            0.6,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "doc": "x=height, y=normal strength, z=falloff power"
+        }
+      ],
+      "variants": []
+    }
+  ]
+}

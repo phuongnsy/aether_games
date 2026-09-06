@@ -1,0 +1,42 @@
+{
+  "_comment": [
+    "THE HUB ISLAND, as an island chunk (sky world s3). What is here is what a",
+    "PLACE is made of - its ground and its tree cover - and nothing else. The",
+    "steading that stands on it is worlds/farm.world.json, this island's ZONE,",
+    "because a satellite in s4 has an island and no farm; keeping the two in one",
+    "file is what made `the farm` and `the world` the same thing and is exactly",
+    "what s3 undoes.",
+    "",
+    "Its camera bounds, its zone and its unlock price are NOT here: they are the",
+    "registry's, in content/islands.hpp, because they are what the GAME needs to",
+    "know about an island before deciding to load it. A chunk describes what to",
+    "spawn; the registry describes which chunk and when.",
+    "",
+    "NO CAMERA AND NO SUN. Both moved to worlds/persistent.world.json, which s5",
+    "will not unload - see that file for why the camera is the player's."
+  ],
+  "name": "hub",
+  "entities": [
+    {
+      "_comment": "THE HUB ISLAND (sky world s1/s3). REPLACED 2026-08-28 by a second Meshy sculpt, retopologised 1,976,220 -> 7,626 triangles by tools/island_retopo.py and 75.0 x 65.6 x 74.7 m. ITS ORIGIN IS THE FARM PAD AND THE ISLAND'S CENTRE AT ONCE, which the previous one could not manage: that sculpt's middle was a river gorge, so the pad sat ~14 m off-centre and camera.hpp carried four asymmetric extents to match. They are symmetric now. The pad is flat to 0.01 m over 18 m, measured by RAYCAST and not by vertex height (discovery:2026-08-26#32) - a tile is 0.12 m tall, so anything coarser floats or sinks visibly. NO WATER IS MODELLED OR PAINTED ON IT YET: the stream was deliberately removed from the concept brief after it came back carved twice, and it gets painted into the base colour instead, where it is flush by construction and can be placed clear of the farm - until then the treeline scatter has no blue texel to key on. NO `color` or `roughness` here on purpose - engine_spawners builds a tint material when either is present, and a tint REPLACES the model's material, which would throw the baked texture away. Receives shadows, casts none - nothing is under it.",
+      "type": "static_mesh",
+      "model": "models/hub_island.glb",
+      "pos": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "casts_shadows": false
+    },
+    {
+      "_comment": "THE ISLAND'S TREE COVER. Until 2026-08-26 this was the APRON - a ring whose only job was hiding that a 120 m slab ended - and the sky world deleted that job outright, because the island's edge is now the subject rather than the seam. The TREELINE survived the deletion on evidence: at r~30-34 against a 36 m island it lands on the rim and reads as a wooded edge, so it is content now, not a screen. The HEDGEROW did not - two straight runs of field boundary make no sense on a round island - and it went, with its 1,008 triangles and one draw. ONE ENTITY, NOT FORTY, and the difference was measured rather than guessed: 40 trees placed individually cost 216 EXTRA DRAWS, because the opaque sort buckets by depth over kOpaqueDepthBuckets = 32 and a ring spread across ~60 m of depth lands 1-2 instances per bucket against kMinInstanceRun = 2, so no run was long enough to instance. The layout is baked into the mesh instead (src/apron.blend, seed 20260825). Sparse scenery cannot instance; dense scenery can, which is why the 576 tiles still batch. NO `color` OR `roughness`, deliberately: engine_spawners only builds a tint material when one is present, so leaving them off is what lets this keep its OWN bark and foliage materials.",
+      "type": "static_mesh",
+      "model": "models/treeline.glb",
+      "pos": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    }
+  ]
+}

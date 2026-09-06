@@ -1,0 +1,12 @@
+{
+  "window": {
+    "title": "aether - Hearthfield"
+  },
+  "reference_size": 720,
+  "app": {
+    "_comment": "The app IDENTITY: a filesystem-safe segment under the user data directory. It names where the save lives AND turns the crash guard on (ADR-0122) — this is the game that runs on out-of-spec Android hardware, so it is the one that must refuse rather than fault.",
+    "name": "hearthfield"
+  },
+  "clear_color": "#8fb7d4",
+  "fixed_dt": 0.016666667
+}

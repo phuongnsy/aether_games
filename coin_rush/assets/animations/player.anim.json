@@ -1,0 +1,346 @@
+{
+  "name": "player",
+  "frame_size": 32,
+  "sheet": "player.png",
+  "atlas": "player.atlas",
+  "clips": [
+    {
+      "name": "idle_down",
+      "direction": "down",
+      "fps": 6.0,
+      "loop": true,
+      "playback": "loop",
+      "frames": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "events": []
+    },
+    {
+      "name": "idle_up",
+      "direction": "up",
+      "fps": 6.0,
+      "loop": true,
+      "playback": "loop",
+      "frames": [
+        4,
+        5,
+        6,
+        7
+      ],
+      "events": []
+    },
+    {
+      "name": "idle_left",
+      "direction": "left",
+      "fps": 6.0,
+      "loop": true,
+      "playback": "loop",
+      "frames": [
+        8,
+        9,
+        10,
+        11
+      ],
+      "events": []
+    },
+    {
+      "name": "idle_right",
+      "direction": "right",
+      "fps": 6.0,
+      "loop": true,
+      "playback": "loop",
+      "frames": [
+        12,
+        13,
+        14,
+        15
+      ],
+      "events": []
+    },
+    {
+      "name": "walk_down",
+      "direction": "down",
+      "fps": 10.0,
+      "loop": true,
+      "playback": "loop",
+      "frames": [
+        16,
+        17,
+        18,
+        19,
+        20,
+        21
+      ],
+      "events": [
+        {
+          "frame": 0,
+          "name": "footstep"
+        },
+        {
+          "frame": 3,
+          "name": "footstep"
+        }
+      ]
+    },
+    {
+      "name": "walk_up",
+      "direction": "up",
+      "fps": 10.0,
+      "loop": true,
+      "playback": "loop",
+      "frames": [
+        22,
+        23,
+        24,
+        25,
+        26,
+        27
+      ],
+      "events": [
+        {
+          "frame": 0,
+          "name": "footstep"
+        },
+        {
+          "frame": 3,
+          "name": "footstep"
+        }
+      ]
+    },
+    {
+      "name": "walk_left",
+      "direction": "left",
+      "fps": 10.0,
+      "loop": true,
+      "playback": "loop",
+      "frames": [
+        28,
+        29,
+        30,
+        31,
+        32,
+        33
+      ],
+      "events": [
+        {
+          "frame": 0,
+          "name": "footstep"
+        },
+        {
+          "frame": 3,
+          "name": "footstep"
+        }
+      ]
+    },
+    {
+      "name": "walk_right",
+      "direction": "right",
+      "fps": 10.0,
+      "loop": true,
+      "playback": "loop",
+      "frames": [
+        34,
+        35,
+        36,
+        37,
+        38,
+        39
+      ],
+      "events": [
+        {
+          "frame": 0,
+          "name": "footstep"
+        },
+        {
+          "frame": 3,
+          "name": "footstep"
+        }
+      ]
+    },
+    {
+      "name": "run_down",
+      "direction": "down",
+      "fps": 14.0,
+      "loop": true,
+      "playback": "loop",
+      "frames": [
+        40,
+        41,
+        42,
+        43,
+        44,
+        45
+      ],
+      "events": [
+        {
+          "frame": 0,
+          "name": "footstep"
+        },
+        {
+          "frame": 3,
+          "name": "footstep"
+        }
+      ]
+    },
+    {
+      "name": "run_up",
+      "direction": "up",
+      "fps": 14.0,
+      "loop": true,
+      "playback": "loop",
+      "frames": [
+        46,
+        47,
+        48,
+        49,
+        50,
+        51
+      ],
+      "events": [
+        {
+          "frame": 0,
+          "name": "footstep"
+        },
+        {
+          "frame": 3,
+          "name": "footstep"
+        }
+      ]
+    },
+    {
+      "name": "run_left",
+      "direction": "left",
+      "fps": 14.0,
+      "loop": true,
+      "playback": "loop",
+      "frames": [
+        52,
+        53,
+        54,
+        55,
+        56,
+        57
+      ],
+      "events": [
+        {
+          "frame": 0,
+          "name": "footstep"
+        },
+        {
+          "frame": 3,
+          "name": "footstep"
+        }
+      ]
+    },
+    {
+      "name": "run_right",
+      "direction": "right",
+      "fps": 14.0,
+      "loop": true,
+      "playback": "loop",
+      "frames": [
+        58,
+        59,
+        60,
+        61,
+        62,
+        63
+      ],
+      "events": [
+        {
+          "frame": 0,
+          "name": "footstep"
+        },
+        {
+          "frame": 3,
+          "name": "footstep"
+        }
+      ]
+    }
+  ],
+  "transitions": [
+    {
+      "from": "idle_down",
+      "to": "walk_down",
+      "condition": "moving"
+    },
+    {
+      "from": "walk_down",
+      "to": "idle_down",
+      "condition": "stopped"
+    },
+    {
+      "from": "walk_down",
+      "to": "run_down",
+      "condition": "sprinting"
+    },
+    {
+      "from": "run_down",
+      "to": "walk_down",
+      "condition": "slowing"
+    },
+    {
+      "from": "idle_up",
+      "to": "walk_up",
+      "condition": "moving"
+    },
+    {
+      "from": "walk_up",
+      "to": "idle_up",
+      "condition": "stopped"
+    },
+    {
+      "from": "walk_up",
+      "to": "run_up",
+      "condition": "sprinting"
+    },
+    {
+      "from": "run_up",
+      "to": "walk_up",
+      "condition": "slowing"
+    },
+    {
+      "from": "idle_left",
+      "to": "walk_left",
+      "condition": "moving"
+    },
+    {
+      "from": "walk_left",
+      "to": "idle_left",
+      "condition": "stopped"
+    },
+    {
+      "from": "walk_left",
+      "to": "run_left",
+      "condition": "sprinting"
+    },
+    {
+      "from": "run_left",
+      "to": "walk_left",
+      "condition": "slowing"
+    },
+    {
+      "from": "idle_right",
+      "to": "walk_right",
+      "condition": "moving"
+    },
+    {
+      "from": "walk_right",
+      "to": "idle_right",
+      "condition": "stopped"
+    },
+    {
+      "from": "walk_right",
+      "to": "run_right",
+      "condition": "sprinting"
+    },
+    {
+      "from": "run_right",
+      "to": "walk_right",
+      "condition": "slowing"
+    }
+  ]
+}

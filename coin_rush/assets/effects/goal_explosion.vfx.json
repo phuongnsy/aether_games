@@ -1,0 +1,185 @@
+{
+  "vfx_studio": true,
+  "effect": {
+    "name": "goal_explosion",
+    "emitters": [],
+    "children": [
+      {
+        "name": "flash",
+        "emitters": [
+          {
+            "name": "core",
+            "mode": "burst",
+            "rate": 200.0,
+            "burst_count": 18,
+            "capacity": 32,
+            "lifetime": 0.3,
+            "lifetime_variance": 0.05,
+            "gravity": [
+              0.0,
+              0.0
+            ],
+            "direction": [
+              0.0,
+              1.0
+            ],
+            "spread": 3.14159,
+            "speed_min": 40.0,
+            "speed_max": 120.0,
+            "jitter": [
+              1.0,
+              1.0
+            ],
+            "start_color": [
+              1.0,
+              0.95,
+              0.7,
+              1.0
+            ],
+            "end_color": [
+              1.0,
+              0.4,
+              0.1,
+              0.0
+            ],
+            "start_size": 10.0,
+            "end_size": 1.0,
+            "texture": "glow.png",
+            "layer": 440,
+            "blend": "additive",
+            "seed": 2085160164
+          }
+        ],
+        "children": [],
+        "events": []
+      },
+      {
+        "name": "debris",
+        "emitters": [
+          {
+            "name": "sparks",
+            "mode": "burst",
+            "rate": 200.0,
+            "burst_count": 24,
+            "capacity": 48,
+            "lifetime": 0.6,
+            "lifetime_variance": 0.2,
+            "gravity": [
+              0.0,
+              -520.0
+            ],
+            "direction": [
+              0.0,
+              1.0
+            ],
+            "spread": 3.14159,
+            "speed_min": 140.0,
+            "speed_max": 340.0,
+            "jitter": [
+              1.0,
+              1.0
+            ],
+            "start_color": [
+              1.0,
+              0.9,
+              0.5,
+              1.0
+            ],
+            "end_color": [
+              0.8,
+              0.3,
+              0.05,
+              0.0
+            ],
+            "start_size": 3.0,
+            "end_size": 0.4,
+            "texture": "glow.png",
+            "layer": 441,
+            "blend": "additive",
+            "seed": 1114094819
+          }
+        ],
+        "children": [],
+        "events": []
+      },
+      {
+        "name": "puff",
+        "emitters": [
+          {
+            "name": "smoke",
+            "mode": "burst",
+            "rate": 200.0,
+            "burst_count": 12,
+            "capacity": 24,
+            "lifetime": 1.1,
+            "lifetime_variance": 0.3,
+            "gravity": [
+              0.0,
+              30.0
+            ],
+            "direction": [
+              0.0,
+              1.0
+            ],
+            "spread": 1.6,
+            "speed_min": 10.0,
+            "speed_max": 45.0,
+            "jitter": [
+              4.0,
+              3.0
+            ],
+            "start_color": [
+              0.35,
+              0.33,
+              0.32,
+              0.7
+            ],
+            "end_color": [
+              0.2,
+              0.2,
+              0.22,
+              0.0
+            ],
+            "start_size": 8.0,
+            "end_size": 18.0,
+            "texture": "smoke.png",
+            "layer": 439,
+            "blend": "alpha",
+            "seed": 2985526498
+          }
+        ],
+        "children": [],
+        "events": []
+      }
+    ],
+    "events": [
+      {
+        "at": "start",
+        "name": "camera_shake",
+        "data": {
+          "strength": 6.0,
+          "duration": 0.4
+        }
+      },
+      {
+        "at": "start",
+        "name": "play_sound",
+        "data": {
+          "clip": "win"
+        }
+      },
+      {
+        "at": "start",
+        "name": "screen_flash",
+        "data": {
+          "color": [
+            1.0,
+            0.9,
+            0.5
+          ],
+          "strength": 0.6
+        }
+      }
+    ]
+  }
+}

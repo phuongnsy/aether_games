@@ -1,0 +1,61 @@
+{
+  "vfx_studio": true,
+  "effect": {
+    "name": "wall_hit_sparks",
+    "emitters": [
+      {
+        "name": "spray",
+        "mode": "burst",
+        "rate": 200.0,
+        "burst_count": 10,
+        "capacity": 32,
+        "lifetime": 0.35,
+        "lifetime_variance": 0.1,
+        "gravity": [
+          0.0,
+          -320.0
+        ],
+        "direction": [
+          0.0,
+          1.0
+        ],
+        "spread": 2.4,
+        "speed_min": 90.0,
+        "speed_max": 220.0,
+        "jitter": [
+          1.0,
+          1.0
+        ],
+        "start_color": [
+          1.0,
+          0.95,
+          0.6,
+          1.0
+        ],
+        "end_color": [
+          1.0,
+          0.5,
+          0.1,
+          0.0
+        ],
+        "start_size": 2.5,
+        "end_size": 0.3,
+        "texture": "glow.png",
+        "layer": 430,
+        "blend": "additive",
+        "seed": 2992320964
+      }
+    ],
+    "children": [],
+    "events": [
+      {
+        "at": "start",
+        "name": "camera_shake",
+        "data": {
+          "strength": 2.0,
+          "duration": 0.1
+        }
+      }
+    ]
+  }
+}

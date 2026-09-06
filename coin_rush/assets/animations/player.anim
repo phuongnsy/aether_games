@@ -1,0 +1,13 @@
+anim atlas="player.atlas" frame_size=32 count=12
+clip name="idle_down" fps=6 loop=1 frames=0,1,2,3
+clip name="idle_up" fps=6 loop=1 frames=4,5,6,7
+clip name="idle_left" fps=6 loop=1 frames=8,9,10,11
+clip name="idle_right" fps=6 loop=1 frames=12,13,14,15
+clip name="walk_down" fps=10 loop=1 frames=16,17,18,19,20,21
+clip name="walk_up" fps=10 loop=1 frames=22,23,24,25,26,27
+clip name="walk_left" fps=10 loop=1 frames=28,29,30,31,32,33
+clip name="walk_right" fps=10 loop=1 frames=34,35,36,37,38,39
+clip name="run_down" fps=14 loop=1 frames=40,41,42,43,44,45
+clip name="run_up" fps=14 loop=1 frames=46,47,48,49,50,51
+clip name="run_left" fps=14 loop=1 frames=52,53,54,55,56,57
+clip name="run_right" fps=14 loop=1 frames=58,59,60,61,62,63

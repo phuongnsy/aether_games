@@ -1,0 +1,12 @@
+{
+  "type": "nine_slice",
+  "image": "panel.png",
+  "slices": {
+    "left": 8,
+    "right": 8,
+    "top": 8,
+    "bottom": 8,
+    "width": 32,
+    "height": 32
+  }
+}

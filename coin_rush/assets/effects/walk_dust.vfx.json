@@ -1,0 +1,52 @@
+{
+  "vfx_studio": true,
+  "effect": {
+    "name": "walk_dust",
+    "emitters": [
+      {
+        "name": "scuff",
+        "mode": "burst",
+        "rate": 200.0,
+        "burst_count": 6,
+        "capacity": 48,
+        "lifetime": 0.4,
+        "lifetime_variance": 0.1,
+        "gravity": [
+          0.0,
+          -90.0
+        ],
+        "direction": [
+          0.0,
+          1.0
+        ],
+        "spread": 1.0,
+        "speed_min": 12.0,
+        "speed_max": 36.0,
+        "jitter": [
+          2.0,
+          1.0
+        ],
+        "start_color": [
+          0.78,
+          0.66,
+          0.48,
+          0.6
+        ],
+        "end_color": [
+          0.78,
+          0.66,
+          0.48,
+          0.0
+        ],
+        "start_size": 4.0,
+        "end_size": 1.0,
+        "texture": "smoke.png",
+        "layer": 380,
+        "blend": "alpha",
+        "seed": 2963147900
+      }
+    ],
+    "children": [],
+    "events": []
+  }
+}

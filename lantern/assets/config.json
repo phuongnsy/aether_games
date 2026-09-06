@@ -1,0 +1,10 @@
+{
+  "window": {
+    "title": "aether - Lantern"
+  },
+  "reference_size": 720,
+  "clear_color": "#05070d",
+  "splash": {
+    "enabled": true
+  }
+}

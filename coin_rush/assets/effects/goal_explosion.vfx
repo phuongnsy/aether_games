@@ -1,0 +1,4 @@
+effect name="goal_explosion" emitters=3
+emitter name="core" mode=burst rate=200 count=18 capacity=32 lifetime=0.3 lifetime_var=0.05 gravity=0,0 dir=0,1 spread=3.14159 speed=40,120 jitter=1,1 start_color=1,0.95,0.7,1 end_color=1,0.4,0.1,0 start_size=10 end_size=1 texture="glow.png" layer=440 blend=additive seed=2085160164
+emitter name="sparks" mode=burst rate=200 count=24 capacity=48 lifetime=0.6 lifetime_var=0.2 gravity=0,-520 dir=0,1 spread=3.14159 speed=140,340 jitter=1,1 start_color=1,0.9,0.5,1 end_color=0.8,0.3,0.05,0 start_size=3 end_size=0.4 texture="glow.png" layer=441 blend=additive seed=1114094819
+emitter name="smoke" mode=burst rate=200 count=12 capacity=24 lifetime=1.1 lifetime_var=0.3 gravity=0,30 dir=0,1 spread=1.6 speed=10,45 jitter=4,3 start_color=0.35,0.33,0.32,0.7 end_color=0.2,0.2,0.22,0 start_size=8 end_size=18 texture="smoke.png" layer=439 blend=alpha seed=2985526498

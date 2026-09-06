@@ -1,0 +1,9 @@
+# Build output. `pixi run configure` puts it under _build/<compiler>/<Config>
+# and points _build/current at the last one configured.
+_build/
+
+# pixi's own environment, and its lock. The lock is NOT tracked, following the
+# engine: this environment is python and a task runner, so a lock would pin the
+# one thing here that does not affect a build byte.
+.pixi/
+pixi.lock

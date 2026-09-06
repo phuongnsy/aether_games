@@ -1,0 +1,95 @@
+{
+  "_comment": "The spire. EVERY platform is a mesh and a collider PAIR at identical pos/half-size — the world format has no parenting, so nothing keeps them together but care (journal 2026-08-08#5). Kept to eight platforms for exactly that reason: hand-pairing is safe at this size and stops being safe well before a real level. Lanterns are spot_lights, unlit at load — the game turns casts_shadows on as you light them.",
+  "name": "spire",
+  "entities": [
+    {
+      "type": "camera",
+      "projection": "perspective",
+      "fov": 60,
+      "near": 0.1,
+      "far": 400,
+      "active": true,
+      "pos": [0, 6, 14],
+      "_comment": "placement is the follow camera's job at runtime; this is only the fallback"
+    },
+    {
+      "type": "directional_light",
+      "_comment": "The dusk sky. Dim on purpose: the lanterns are meant to matter, and this is the ONLY light that can cast until one is lit.",
+      "rot": [28, -40, 0],
+      "color": [0.34, 0.40, 0.62],
+      "intensity": 3.2,
+      "casts_shadows": true
+    },
+
+    { "_tier": "0 — the ground you arrive on",
+      "type": "static_mesh", "model": "models/cube.gltf",
+      "pos": [0, -0.5, 0], "scale": [16, 1, 16],
+      "color": [0.34, 0.33, 0.36], "roughness": 0.95, "casts_shadows": false },
+    { "type": "collider", "shape": "box",
+      "pos": [0, -0.5, 0], "half_extents": [8, 0.5, 8] },
+
+    { "_tier": "1 — a step up, then a ledge",
+      "type": "static_mesh", "model": "models/cube.gltf",
+      "pos": [3.5, 0.2, -2.0], "scale": [3, 0.4, 3],
+      "color": [0.40, 0.38, 0.35], "roughness": 0.9 },
+    { "type": "collider", "shape": "box",
+      "pos": [3.5, 0.2, -2.0], "half_extents": [1.5, 0.2, 1.5] },
+
+    { "type": "static_mesh", "model": "models/cube.gltf",
+      "pos": [3.5, 0.6, -5.5], "scale": [3, 1.2, 3],
+      "color": [0.40, 0.38, 0.35], "roughness": 0.9 },
+    { "type": "collider", "shape": "box",
+      "pos": [3.5, 0.6, -5.5], "half_extents": [1.5, 0.6, 1.5] },
+
+    { "_tier": "2 — across a gap; the first jump",
+      "type": "static_mesh", "model": "models/cube.gltf",
+      "pos": [0.0, 1.0, -8.5], "scale": [3.5, 2.0, 3],
+      "color": [0.44, 0.41, 0.36], "roughness": 0.9 },
+    { "type": "collider", "shape": "box",
+      "pos": [0.0, 1.0, -8.5], "half_extents": [1.75, 1.0, 1.5] },
+
+    { "type": "static_mesh", "model": "models/cube.gltf",
+      "pos": [-3.5, 1.4, -6.0], "scale": [3, 2.8, 3],
+      "color": [0.44, 0.41, 0.36], "roughness": 0.9 },
+    { "type": "collider", "shape": "box",
+      "pos": [-3.5, 1.4, -6.0], "half_extents": [1.5, 1.4, 1.5] },
+
+    { "_tier": "3 — the climb proper",
+      "type": "static_mesh", "model": "models/cube.gltf",
+      "pos": [-3.5, 1.8, -2.0], "scale": [3, 3.6, 3],
+      "color": [0.47, 0.43, 0.37], "roughness": 0.88 },
+    { "type": "collider", "shape": "box",
+      "pos": [-3.5, 1.8, -2.0], "half_extents": [1.5, 1.8, 1.5] },
+
+    { "type": "static_mesh", "model": "models/cube.gltf",
+      "pos": [-1.0, 2.2, 1.5], "scale": [3, 4.4, 3],
+      "color": [0.47, 0.43, 0.37], "roughness": 0.88 },
+    { "type": "collider", "shape": "box",
+      "pos": [-1.0, 2.2, 1.5], "half_extents": [1.5, 2.2, 1.5] },
+
+    { "_tier": "4 — the top",
+      "type": "static_mesh", "model": "models/cube.gltf",
+      "pos": [2.5, 2.6, 2.5], "scale": [3.5, 5.2, 3.5],
+      "color": [0.50, 0.45, 0.38], "roughness": 0.86 },
+    { "type": "collider", "shape": "box",
+      "pos": [2.5, 2.6, 2.5], "half_extents": [1.75, 2.6, 1.75] },
+
+    { "_lanterns": "one per tier, hanging above its platform. casts_shadows stays FALSE here — the game turns it on as each is lit, which is composition check 4.",
+      "type": "spot_light",
+      "pos": [3.5, 3.4, -2.0],
+      "color": [1.0, 0.82, 0.52], "intensity": 40, "range": 12,
+      "inner_cone": 16, "outer_cone": 34, "casts_shadows": false },
+    { "type": "spot_light",
+      "pos": [0.0, 4.6, -8.5],
+      "color": [1.0, 0.82, 0.52], "intensity": 40, "range": 12,
+      "inner_cone": 16, "outer_cone": 34, "casts_shadows": false },
+    { "type": "spot_light",
+      "pos": [-3.5, 5.4, -2.0],
+      "color": [1.0, 0.82, 0.52], "intensity": 40, "range": 12,
+      "inner_cone": 16, "outer_cone": 34, "casts_shadows": false },
+    { "type": "spot_light",
+      "pos": [2.5, 7.2, 2.5],
+      "color": [1.0, 0.86, 0.60], "intensity": 46, "range": 14,
+      "inner_cone": 16, "outer_cone": 34, "casts_shadows": false }
+  ]
+}

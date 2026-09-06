@@ -1,0 +1,43 @@
+{
+  "_comment": [
+    "EVERY SATELLITE'S ZONE — a farm you have to BUILD, which is the difference",
+    "between one of these and the hub and the reason this file is short.",
+    "",
+    "SHARED BY BOTH SATELLITES rather than copied per island, and that is the",
+    "point of the name. They were ratified as the same 24x24 farm, so two",
+    "identical files would be one authored thing in two places, drifting the",
+    "first time either is edited. A zone is a PATH in content::kIslands, so",
+    "sharing one is a registry decision and costs nothing; when a satellite",
+    "earns its own shape it gets its own file and the other keeps this.",
+    "",
+    "The hub's zone (worlds/farm.world.json) is a whole steading: a mill, a coop,",
+    "a yard, a fence and a lane. Copying that here would have made the satellite",
+    "the same farm twice, and duplicated five authored entities that would then",
+    "have to be edited in two places forever. What it gets instead is the FENCE",
+    "and nothing else: the board's boundary, so 576 plots do not simply stop, and",
+    "bare ground inside it.",
+    "",
+    "SO THERE IS NO MILL AND NO FLOCK HERE, deliberately. view::Steading is built",
+    "for exactly this - `a missing locator costs that feature and says so` - so",
+    "the mill's sound and the birds are absent rather than broken, and the player",
+    "buys a mill when they want one. That is also what makes arriving somewhere",
+    "feel like arriving: the same 24x24 board the hub has, and nothing on it.",
+    "",
+    "The board itself is NOT authored, here or anywhere: the plot table lives in",
+    "the sim's WorldView and view/ mirrors it (H1 plan 3a). This file is what",
+    "STANDS on the island, not what grows on it."
+  ],
+  "name": "satellite_farm",
+  "entities": [
+    {
+      "_comment": "The field's boundary, the same baked mesh the hub uses — one entity, 540 triangles, with a gate on +Z. Shared as an ASSET rather than copied as content, which is the distinction: two islands may both have a fence without either owning the other's steading.",
+      "type": "static_mesh",
+      "model": "models/field_fence.gltf",
+      "pos": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    }
+  ]
+}
