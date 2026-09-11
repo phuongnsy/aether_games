@@ -56,6 +56,17 @@ def engine() -> Path:
     return path
 
 
+def shell_arg(arg: str) -> str:
+    """One argument for pixi's shell — quoted on POSIX, bare on Windows.
+
+    pixi's Windows shell strips NEITHER single nor double quotes, so a quoted
+    path arrives with the quotes in it and every task here died on `can't open
+    file "'D:\\...\\configure.py'"`. It does preserve argv boundaries, so a bare
+    path with a space survives — measured, both ways, before this changed.
+    """
+    return arg if os.name == "nt" else shlex.quote(arg)
+
+
 def in_engine_env(cmd: list[str]) -> int:
     """Run `cmd` in the engine's pixi environment, pointed at OUR build tree.
 
@@ -67,10 +78,8 @@ def in_engine_env(cmd: list[str]) -> int:
         sys.exit("pixi is not on PATH — https://pixi.sh, then re-run.")
     env = dict(os.environ)
     env["AETHER_BUILD_DIR"] = str(BUILD)
-    # pixi hands the command to its own shell, so quote each argument here
-    # rather than hoping no path has a space in it.
     full = ["pixi", "run", "--manifest-path", str(engine() / "pixi.toml"),
-            "-e", "default", *(shlex.quote(c) for c in cmd)]
+            "-e", "default", *(shell_arg(c) for c in cmd)]
     print("+", " ".join(full), flush=True)
     return subprocess.run(full, env=env).returncode
 
