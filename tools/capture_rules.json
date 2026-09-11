@@ -1,0 +1,317 @@
+{
+  "_comment": "The game capture oracles and cost budgets, RESTORED 2026-09-11. ADR-0172 deleted these eleven checks rather than pointing them across the repo boundary, so for a month four games could render anything at all and the suite stayed green. Recovered verbatim from the engine at 990def0e^ -- digests, covers and notes -- because those notes ARE the record of what each picture is supposed to be and why it last changed. Checked by the engine's own tools/check_captures.py via --root, never a second copy: `pixi run captures-check` here. The expect keys are Config/compiler, so this tree must be Debug/msvc or Release/clang to have anything to compare.",
+  "digest": {
+    "sequence": "md5 of the per-file md5 checksums WITHOUT filenames, so the capture prefix does not enter the value: `md5sum out_*.png | awk '{print $1}' | md5sum`",
+    "single": "md5 of the one PNG's bytes"
+  },
+  "oracles": [
+    {
+      "id": "lantern",
+      "binary": "bin/games/lantern",
+      "args": [
+        "--demo",
+        "--frames",
+        "400",
+        "--capture",
+        "{out}",
+        "--capture-start",
+        "320",
+        "--capture-frames",
+        "40",
+        "--weather",
+        "off"
+      ],
+      "digest": "sequence",
+      "expect": {
+        "Release/clang": "196fe448ba517472e8db29aeb8fc0166",
+        "Debug/msvc": "5a96b04d417cb939e52863a412bd9893"
+      },
+      "runs": 2,
+      "source": "../aether/docs/perf/lantern-capture-baseline.md",
+      "covers": "the 3D path: world instantiation -> skinned character -> shadow-casting spot -> HUD. Weather is pinned OFF here so this digest keeps meaning what it always did; the weather-ON oracle is `lantern-weather` below.",
+      "note": "RE-RECORDED 2026-08-12, from 3b9975cd... The first thing captures-check ever found: the value had drifted and nothing had re-run it since 2026-08-08. Stable at the new value 5/5, so a settled change and not a flake, and EXPLAINED by five plans that closed 2026-08-11 and each legitimately move 3D pixels: equirect-orientation, radiance-cube-supersampling, roughness-ladder-shape (ADR-0041, which remaps roughness to mip and so moves every IBL specular pixel), separate-occlusion-map (ADR-0040) and material-sheen (ADR-0039). Explained, not bisected — nobody re-ran the oracle at the commit that moved it. Covers what the sandbox digest CANNOT: the sandbox is 2D sprites, so RenderShadowMap returns early on an empty mesh list and never runs, and using the sandbox digest to gate a shadow change once cost a round. RE-RECORDED 2026-08-20 with seven others for ONE cause: CasterBounds never tested `casts_shadows`, so a non-casting RECEIVER sized the shadow map. Isolated before re-recording -- reverting that single flag test, with everything else of that commit in place, returns all eight to their previous digests. Every one was looked at before being accepted: human-lab's shadows go from blocky blobs to crisp limbs, pbr_showcase's contact shadows tighten slightly, lantern and model_explorer are visually indistinguishable, and NO shadow appears or disappears in any of them. See docs/perf/crowd-baseline.md. RE-RECORDED AGAIN 2026-08-20, same eight, for ADR-0071: the shadow map is now fitted to the casters that can REACH the view rather than to every caster in the world, and the sweep that decides 'can reach' is bounded by how far a shadow physically travels. A tighter box is finer texels, so these are sharper again. A/B'd before accepting: human-lab and lantern are near-indistinguishable (their casters already fill the view, so there is little to tighten) and nothing loses a shadow. The scene this was for is crowd_showcase at 10,000, where the fit went 490.8 m -> 145.9 m."
+    },
+    {
+      "id": "lantern-weather",
+      "binary": "bin/games/lantern",
+      "args": [
+        "--demo",
+        "--weather",
+        "rain",
+        "--frames",
+        "400",
+        "--capture",
+        "{out}",
+        "--capture-start",
+        "320",
+        "--capture-frames",
+        "40"
+      ],
+      "digest": "sequence",
+      "expect": {
+        "Release/clang": "7185ac5b47f2e30a423417871d147bbb",
+        "Debug/msvc": "17ade57b22d90bd0989625401a47032f"
+      },
+      "runs": 2,
+      "source": "../aether/docs/perf/lantern-capture-baseline.md",
+      "covers": "the 3D weather column (weather-3d t5): seeded RainField3 drops swept through SceneGeometryQuery3, SkyVisibilityField3 shelter, splash discs, per-surface wetness reaching the PBR material through u_wetness, all stepped by the worldsim Coordinator on the demo's fixed step, and since 2026-08-14 the SOFT-PARTICLE fade as well: rain is tagged with the soft sprite program and the depth prepass runs, so this digest now also guards that path",
+      "note": "Recorded 2026-08-14 at 2/2 independent full runs identical. Deliberately the SAME demo/frames as `lantern` with --weather rain instead of off: a drift HERE while `lantern` stays green localizes to the weather column, both moving together is the base 3D path. Forty frames of falling drops make this the most simulation-heavy oracle in the set — an unseeded RNG, an order-dependent container, or a dt leak in the weather step moves it when nothing else notices. RE-RECORDED 2026-08-14 from 1be1867e..., and BISECTED rather than assumed: the snow work replaced the flake texture with a 32px Gaussian, and lantern's rain SPLASH discs share that texture. Reverting only the texture restored 1be1867e byte-identically, which is what proves the rain simulation itself did not move — the drops, the sweep and the shelter are untouched, and only the splash's pixels changed. RE-RECORDED again 2026-08-14 from f48b6856..., bisected the same way: soft particles became the game's default for precipitation, and `--soft 0` reproduces f48b6856 byte-identically, which localises the move to that flag and nothing else. Enabled by measurement, not preference — 2088 changed pixels at this camera distance against 11 in weather3d_lab's 26 m orbit, for +31 us GPU and 9 draws. RE-RECORDED a third time 2026-08-14 from da557034..., for rain's spawn volume: it was world-fixed at 18x18 while snow followed the view at 30x30, so rain hung over the spire instead of surrounding the player. Both now share one followed box. Bisected: reverting ONLY the rain half returns da557034 byte-identically, which also proves the SetSnowCenter -> SetViewCenter rename left snow untouched. RE-RECORDED 2026-08-20 with seven others for ONE cause: CasterBounds never tested `casts_shadows`, so a non-casting RECEIVER sized the shadow map. Isolated before re-recording -- reverting that single flag test, with everything else of that commit in place, returns all eight to their previous digests. Every one was looked at before being accepted: human-lab's shadows go from blocky blobs to crisp limbs, pbr_showcase's contact shadows tighten slightly, lantern and model_explorer are visually indistinguishable, and NO shadow appears or disappears in any of them. See docs/perf/crowd-baseline.md. RE-RECORDED AGAIN 2026-08-20, same eight, for ADR-0071: the shadow map is now fitted to the casters that can REACH the view rather than to every caster in the world, and the sweep that decides 'can reach' is bounded by how far a shadow physically travels. A tighter box is finer texels, so these are sharper again. A/B'd before accepting: human-lab and lantern are near-indistinguishable (their casters already fill the view, so there is little to tighten) and nothing loses a shadow. The scene this was for is crowd_showcase at 10,000, where the fit went 490.8 m -> 145.9 m."
+    },
+    {
+      "id": "coin_rush-win",
+      "binary": "bin/games/coin_rush",
+      "args": [
+        "--width",
+        "1280",
+        "--height",
+        "720",
+        "--frames",
+        "900",
+        "--capture",
+        "{out}",
+        "--capture-start",
+        "880",
+        "--capture-frames",
+        "1",
+        "--level",
+        "1"
+      ],
+      "digest": "single",
+      "expect": {
+        "Release/clang": "cb0a75fc0793d0a0a7d3400401c82991",
+        "Debug/msvc": "cb0a75fc0793d0a0a7d3400401c82991"
+      },
+      "runs": 1,
+      "source": "CLAUDE.md",
+      "covers": "the deterministic 2D SIM, end to end: 900 fixed steps of autopilot reaching YOU WIN 8/8",
+      "note": "The only oracle here that proves SIMULATION determinism rather than render output — a one-frame capture of a state 900 steps deep, so any drift in the fixed step moves it. Shown byte-identical across a stash/rebuild/restore cycle twice on 2026-08-12."
+    },
+    {
+      "id": "tideworn-waterline",
+      "binary": "bin/games/tideworn",
+      "args": [
+        "--pitch",
+        "0.0",
+        "--distance",
+        "8",
+        "--start-clock",
+        "300",
+        "--width",
+        "640",
+        "--height",
+        "360",
+        "--frames",
+        "120",
+        "--capture",
+        "{out}",
+        "--capture-start",
+        "90",
+        "--capture-frames",
+        "20"
+      ],
+      "digest": "sequence",
+      "expect": {
+        "Release/clang": "40750715409bf3403092be85bb649f32",
+        "Debug/msvc": "df12a7666193a2356a7e864f0de8862b"
+      },
+      "runs": 1,
+      "source": "../aether/docs/plans/2026-08-15-displaced-water-mesh.md",
+      "covers": "the WATERLINE: a camera straddling the water plane, where the projected grid meets the near plane. Covers the projector clamp, the straddle fill and the mesh compositing over it — the band every other oracle skips, since they all sit well above or well below the surface.",
+      "note": "Recorded 2026-08-16 with ADR-0059, stable 4/4. THE ORACLE THIS SET WAS MISSING: the waterline tear shipped, passed 984 tests and all 8 existing oracles byte-identical, and was found BY EYE — no gate could see it, because no capture put a camera near the plane. Validated by MUTATION rather than by assertion: disabling the straddle fill moves it to f179aae8732a, and reverting the projector clamp to 0a569acee163, so it demonstrably fails on either half of the fix. 20 frames rather than 1 on purpose — the boat rides the swell, so the camera sweeps through the straddle band instead of sampling one height."
+    },
+    {
+      "id": "tideworn-underwater",
+      "binary": "bin/games/tideworn",
+      "args": [
+        "--swim",
+        "--start-clock",
+        "300",
+        "--width",
+        "640",
+        "--height",
+        "360",
+        "--frames",
+        "120",
+        "--capture",
+        "{out}",
+        "--capture-start",
+        "90",
+        "--capture-frames",
+        "20"
+      ],
+      "digest": "sequence",
+      "expect": {
+        "Release/clang": "78cb8afc9b8941703417481320bb71c3",
+        "Debug/msvc": "9645c569c12e02f3f18a1e6c2549bce4"
+      },
+      "runs": 1,
+      "source": "../aether/docs/plans/2026-08-15-displaced-water-mesh.md",
+      "covers": "the view from BELOW: DrawUnderwater's full mode — per-channel fog, the Snell's-window ceiling, TIR outside it — plus the swim camera crossing back through the surface, which no other oracle exercises",
+      "note": "Recorded 2026-08-16, stable 3/3. Distinct from tideworn-waterline rather than redundant with it: this one boots the swim camera BELOW the plane, so the frame is the underwater path, and the autopilot glide carries it through the crossing. It also moves when the projector clamp is reverted (b49fc07a8b33), which is the evidence that these frames genuinely straddle rather than sitting safely deep."
+    },
+    {
+      "id": "tideworn-storm-waterline",
+      "binary": "bin/games/tideworn",
+      "args": [
+        "--pitch",
+        "0.0",
+        "--distance",
+        "8",
+        "--start-clock",
+        "420",
+        "--width",
+        "640",
+        "--height",
+        "360",
+        "--frames",
+        "130",
+        "--capture",
+        "{out}",
+        "--capture-start",
+        "100",
+        "--capture-frames",
+        "20"
+      ],
+      "digest": "sequence",
+      "expect": {
+        "Release/clang": "da8b468d8cf976537689fdf5846f0591",
+        "Debug/msvc": "91e0452e08e473b34e994d461d3ba73e"
+      },
+      "runs": 1,
+      "source": "../aether/docs/plans/2026-08-15-displaced-water-mesh.md",
+      "covers": "the waterline at a STORM sea state (clock 420 = the wind schedule's 24 m/s peak), where the Gerstner displacement is largest and the projected grid's near edge runs out soonest — the case the two calm waterline oracles cannot reach",
+      "note": "Added 2026-08-16 after a user screenshot showed raw sky under the sea that the existing gates could not see. THE POINT OF THIS ENTRY: tideworn-waterline and tideworn-underwater both pin ONE sea state (--start-clock 300), and the defect lived entirely in the storm band — the mesh's near edge is displaced upward by crests of metres, and the straddle fill's distance cut stopped backing it up, leaving a band neither drew. Reproduced here first, then fixed (the fill's cut removed; it is a backstop the mesh overdraws, so a missing fill fragment is a hole while a wasted one costs nothing). Clock 420 is the schedule's wind peak, so this is the worst case by construction rather than by a camera that happened to catch it. Stable 3/3."
+    }
+  ],
+  "excluded": [
+    {
+      "id": "_none",
+      "why": "EMPTY. Keep this list when something genuinely cannot be an oracle; an entry here is a claim that needs its own evidence, not a place to put a gate that is merely inconvenient."
+    }
+  ],
+  "_policy": [
+    "PIN THE FRAME with `--capture-start`/`--capture-frames`. You no longer have to pin",
+    "dt: since 2026-08-12 ANY capture puts the loop in deterministic mode",
+    "(dev_flags.hpp — `WritesScreenshots() || bench || record || replay`). Before that it",
+    "keyed off `capture_frames > 0`, so a single-shot capture ran on wall-clock dt and",
+    "landed after a machine-speed-dependent number of fixed steps: on an animated scene",
+    "that produced exactly two stable digests clustering per session, and it cost two",
+    "wrong hypotheses (shadows, ASLR) before the invocation turned out to be the bug.",
+    "A static scene hides it, so 'it was stable when I recorded it' is not evidence.",
+    "",
+    "WHEN TO EXCLUDE AN ORACLE, vs tolerate its nondeterminism. The test is whether it",
+    "can still FAIL on a real change:",
+    "",
+    "  tolerated — the variation is a small set of STABLE variants. Record them all in",
+    "  `expect` (a list) and set `nondeterministic: true`; a real change moves EVERY",
+    "  variant off the set, so the oracle still fails. NOTHING NEEDS THIS TODAY, and the",
+    "  two entries that did were cured by the dt fix above. Rule that out first.",
+    "",
+    "  excluded — the value is not stable ACROSS BUILDS, so the baseline means nothing",
+    "  and no comparison can be trusted in either direction."
+  ],
+  "_budget_comment": [
+    "COST oracles, beside the digest ones and in the same gate on purpose. A capture",
+    "digest cannot see them: reverting the off-screen caster-LOD fix of 2026-08-20",
+    "left every digest here byte-identical while the frame went from 8.7 ms to 141 ms,",
+    "because caster LOD changes COST and not pixels. Three ADRs (0069, 0070, 0071)",
+    "had no automated guard at all until these.",
+    "",
+    "WHY TRIANGLES AND DRAWS, NOT MILLISECONDS: they are bit-exact run to run (three",
+    "runs, same value, both scenes), so this is a real oracle rather than a threshold",
+    "needing per-machine calibration the way aether_bench's frame budget does.",
+    "",
+    "UPPER BOUNDS, not equality. A budget says 'must not grow': an improvement passes",
+    "and needs no re-record, which is the opposite maintenance burden from a digest.",
+    "`measured` is what it actually was when the bound was set, so the headroom is",
+    "visible and a bound quietly loosened to nothing is obvious.",
+    "",
+    "GEA 10.8 supplies the idea ('ensuring that his or her code runs efficiently and",
+    "within budget', and 'the only way to know ... is to measure') and stops at a",
+    "HUMAN-READ HUD profiler. It describes no automated gate. The principle is the",
+    "book's; that this is a gate is not. Note also that the HUD is the one instrument",
+    "the crowd plan forbids -- it produced three wrong conclusions on 2026-08-19 --",
+    "so these read AETHER_BENCH_FRAMES output instead."
+  ],
+  "budgets": [
+    {
+      "id": "hearthfield-board",
+      "binary": "bin/games/hearthfield",
+      "args": [
+        "--no-save",
+        "--grid",
+        "24",
+        "--sow",
+        "--autopilot"
+      ],
+      "bench_frames": 120,
+      "max_triangles": 142000,
+      "max_draws": 60,
+      "max_peak_draws": 64,
+      "measured": {
+        "triangles": 125940,
+        "draws": 54,
+        "peak_draws": 58
+      },
+      "_ui_surfaces_note": "+64 TRIANGLES ACROSS TWO STEPS ON 2026-08-29, and every one is accountable. +48 when hearthfield adopted ui::ButtonSkin, so each of the three HUD tabs became a 9-slice — nine quads where a flat one was one — and 3 x (18 - 2) is 48. Then +16 when the HUD BAR itself became a 9-slice card inset from the window edges, which is the same 18 - 2 once. Draws never moved, because it is all one sprite batch. `measured` is updated and the BOUNDS ARE NOT: this is a small cost knowingly taken, not an improvement, and re-cutting a bound that still has 8-9% headroom is how one starts flapping.",
+      "source": "../aether/docs/plans/2026-08-25-hearthfield-art-pipeline.md",
+      "_next_rule_note": "hearthfield-crossing follows and measures a DIFFERENT scenario; do not merge the two bounds.",
+      "_dry_note": "THIS RULE RUNS DRY, AND THAT TURNS OUT TO GUARD THE RAIN GATE. The background emitter dispatches over its whole capacity whenever it is stepped, so leaving it running through dry weather would be half a millisecond of nothing, forever — and the guard against that is a `raining || live > 0` check that nothing would otherwise watch. Break it and the sky layer's draw and its 131,072 triangles appear HERE, in the one rule where it must never be: 54 draws becomes 55 and 125,876 triangles becomes 257k, three times this bound. Discovered rather than designed (2026-08-29), and MUTATION-PROVED the same day: removing the gate turned this rule and hearthfield-crossing red while hearthfield-rain stayed green, which is the pair working as intended — the wet rule cannot see a gate that is already open. It is the reason not to add `--rain` to this rule for convenience.",
+      "covers": "Spec check 9's cost half, and the ONE Hearthfield oracle that runs on every machine: draws and triangles are integers and bit-exact run to run (measured twice here, identical), so this needs no per-toolchain calibration the way a pixel digest does. What it watches is INSTANCING, which is the single most load-bearing perf fact on this board: 225 plots plus their crops plus the authored steading come to 33 draws because identical materials merge into one run. Lose that and the board is one draw per tile — 450+, ten times the bound. It also catches a material split (a per-plot tint), and decor added without noticing.",
+      "note": "RE-CUT 2026-08-29 for ONE cause, the camera's near/far window: `distance` went 40 -> 300 and `far` 200 -> 700 to stop the archipelago being sliced by the near plane (see worlds/persistent.world.json), and draws fell 61 -> 54 with the peak 67 -> 58. THE IMAGE IS UNCHANGED - the hub, its trees, their shadows, the fence and the crops are indistinguishable in a side-by-side at 1280, and the only visible difference is a neighbouring island that is now whole instead of a clipped wedge. WHAT IS NOT ESTABLISHED IS THE MECHANISM: a deeper view slab plausibly changes what the shadow fit sweeps or what straddles the near plane, but nine draws is not accounted for line by line, and this note says so rather than implying it was. Bounds re-cut onto the new measurement because one left loose after an improvement stops gating anything. GAINED A PEAK BOUND 2026-08-29, closing a gap open since this rule was written: `max_draws: 70` was compared against the p50 of 61, while the board's actual worst frame is 67. The bound's INTENT was always the peak - the note below says `draws are the gate` - but the quantity checked was the median, so the board sat at 96% of its own budget while the gate reported 13% headroom. `max_peak_draws: 72` on a measured 67 makes the intent real. Both are kept because they answer different questions: the p50 says what the board costs to run, the peak says how close it comes to the ceiling. RE-BASELINED ONTO A BOARD THAT ACTUALLY HAS CROPS ON IT (2026-08-28), and the reason is a defect in this rule rather than a change to the game. `--sow` planted ONE crop, not 225: a plot must be OWNED to be planted, a new farm owns four, and three already carry authored crops. The flag predates plot unlocking (chain.hpp's `economy.unlocked`), so a GAMEPLAY feature silently invalidated a MEASUREMENT setup and nothing was watching for it (event:2026-08-28#20). Every figure this rule recorded before today described a board in its first minute. `--sow` now unlocks the board, and the honest number at the OLD default was 73,776 against a 56,000 bound - the shipping game was 32% over a gate that was reporting green. The bound is 142,000 on a measured 131,724 at ~8% headroom, and it WILL move again when wheat and corn replace cone.gltf: crops CAST (board.cpp sets casts_shadows=false on tiles and says nothing about crops) so each one counts twice, and the art bible's 150-triangle allowance is 576 x 150 x 2 = 172,800 for crops alone. Re-cut it then, on a measurement. DRAWS ARE STILL THE REAL GATE AND THEY BARELY MOVED: 59 of 70 across 1,166 meshes, up from 54 across 240, which is ADR-0136's finding holding at 5x the mesh count. GPU is 0.888 ms, 5.3% of a 16.67 ms frame, so this is a budget rather than a performance question. --grid 24 replaced --grid 15 because the default board became 24 the same day (event:2026-08-28#24) and a rule measuring a size nobody plays is not measuring the game. MEASURED ON A DESKTOP GPU; Hearthfield runs on Android and there is no perf baseline on any device. RE-MEASURED 2026-08-28 after the field fence landed (f2): 131,724 / 59 -> 132,684 / 51. The fence ADDED 960 triangles and REMOVED EIGHT DRAWS, because it replaced five scattered entities with one baked mesh and five entities spread across the board never form an instance run. The bound did NOT move: 142,000 still leaves ~7% and a bound re-cut for an improvement this small would just flap. RE-MEASURED 2026-08-29 when wheat and corn replaced cone.gltf (f5): 132,684 / 51 -> 124,620 / 57. TRIANGLES WENT DOWN - the authored crops are 60 and 54 against the cone's 64, and 576 of them count twice - while DRAWS went up 6, because two crop meshes are two batches where one was one. `--sow` now ALTERNATES the crop by row for exactly that reason: sowing only wheat would under-report draws the same way sowing nothing under-reported triangles. The bound stays 142,000 / 70; nothing here justifies moving it. RE-MEASURED 2026-08-29 when the authored coop replaced cube.gltf (f6): 124,620 / 57 -> 124,868 / 61. The +4 draws are the price of THREE MATERIALS where a tinted cube had one, and art bible 6.6 budgeted exactly that. DRAWS ARE NOW THE THING TO WATCH: 61 of 70 is 13% and the triangle side still has 12%, which inverts what this rule looked like a day ago. The remaining apron work (f3) is one more baked mesh at ~2 draws; anything wanting a FOURTH material on a building is now a real decision, not a detail."
+    },
+    {
+      "id": "hearthfield-crossing",
+      "binary": "bin/games/hearthfield",
+      "args": [
+        "--no-save",
+        "--grid",
+        "24",
+        "--sow",
+        "--autopilot",
+        "--travel",
+        "1"
+      ],
+      "bench_frames": 240,
+      "max_triangles": 37000,
+      "max_draws": 30,
+      "max_peak_draws": 66,
+      "measured": {
+        "triangles": 32322,
+        "draws": 26,
+        "peak_draws": 60
+      },
+      "_ui_surfaces_note": "+64 TRIANGLES ACROSS TWO STEPS ON 2026-08-29, and every one is accountable. +48 when hearthfield adopted ui::ButtonSkin, so each of the three HUD tabs became a 9-slice — nine quads where a flat one was one — and 3 x (18 - 2) is 48. Then +16 when the HUD BAR itself became a 9-slice card inset from the window edges, which is the same 18 - 2 once. Draws never moved, because it is all one sprite batch. `measured` is updated and the BOUNDS ARE NOT: this is a small cost knowingly taken, not an improvement, and re-cutting a bound that still has 8-9% headroom is how one starts flapping.",
+      "source": "../aether/docs/plans/2026-08-26-hearthfield-sky-world.md",
+      "covers": "THE ONLY THING THAT MEASURES AN UNLOAD. Sky world s5 made travel a 2 s camera flight that frees the departed island on arrival, and nothing else in the repo watches that it happens: hearthfield-board measures the steady state on the hub and never crosses. `bench_frames` is 240 against a 2.0 s crossing at bench mode's fixed dt — so the window runs PAST arrival and the p50 is the arrived state, one satellite plus two silhouettes plus the persistent chunk. A departed island left alive lands squarely in that median. It also catches the neighbour silhouettes accumulating instead of being rebuilt, which is the same class of leak one layer out.",
+      "_next_rule_note": "hearthfield-rain follows and is the ONLY rule that turns the weather on; neither of the two above ever rains.",
+      "note": "RE-CUT 2026-08-29 with hearthfield-board and for the same cause, the camera's near/far window (26 draws, 60 peak, from 27 and 69). AND IT CLOSED THE GAP THIS RULE WAS WRITTEN AROUND: the crossing's un-rotated peak was 71 against a bound of 70 - recorded as a known-bad number no oracle covered - and widening the depth slab took it to 62. The thing that had been described as inherent to the design turned out to be inherent to a CLIPPED camera, which is a reminder that `we measured it and it is the feature` is only as good as the configuration it was measured in. GAINED A PEAK BOUND 2026-08-29, which is what this rule needed all along: its p50 samples the ARRIVED state and could never see the transient a crossing exists to produce. `max_peak_draws` bounds the worst FRAME, measured at 69 in this rule's own configuration. TWO THINGS TO KNOW ABOUT THAT 69. (1) The un-rotated case measures 71 - `--autopilot` turns the camera and the turn happens to move it off the worst orientation during the peak window, so this rule, like every rule here that uses autopilot, measures a slightly friendlier scenario than the game presents. The bound is cut at 74 to cover both rather than only what this configuration sees. (2) THE PEAK IS INHERENT TO THE DESIGN, not a defect: a crossing puts the camera between two islands and the archipelago was ratified as `distant silhouettes only`, so seeing two at once is the feature working. An attempt to remove it by deferring the target island's load to a quarter of the way across was built, measured and REVERTED - the peak stayed at 71, because the cost is the neighbour SILHOUETTE entering frame while the departed board is still in it, and the silhouette is there either way. Sweeping the frame count put the jump between frames 10 and 20, BEFORE the deferred load, which is the evidence that killed the hypothesis. RE-MEASURED 2026-08-29 for ONE cause, the second farm's n5: near_isle STOPPED BEING BARE ROCK. It has a zone now — a fence — and a 24x24 board, so the state this window's p50 samples (the arrived island) went from an empty disc to a farm: 10,520 / 22 -> 32,258 / 27. That is the scenario changing, not a regression, and the bounds are re-cut on the new measurement at this file's usual headroom (~13% triangles, ~13% draws). What it still watches is unchanged and is the reason it went red rather than drifting: the unload. MUTATION-PROVED 2026-08-29 AND RE-CUT ONCE IN THE PROCESS, which is the part worth reading. The first version used bench_frames 120 — chosen because that is exactly the 2 s crossing — and its p50 was the two-islands-resident state at 61,622 / 37. It was PROVEN USELESS: deleting the DestroyNode that frees the departed island left it reporting `ok` unchanged, because the unload happens AT arrival and a 120-frame window ends before it. A window sized to the interesting moment measured everything except the thing it was for. At 240 the same mutation gives 36,242 triangles against a 10,520 baseline — 3.4x, and 3x this bound. Bounds cut on the clean measurement at ~12% (triangles) and ~9% (draws); the triangle side is the one that catches the leak, the draw side is tight because a culled leaked island barely draws. TWO LIMITS. (1) IT IS A p50 AND CANNOT SEE A PEAK. A crossing's transient peak measured 69 to 74 draws across configurations — it depends on which quarter turn the camera departs at and which island is the target — against hearthfield-board's bound of 70, so the game's true peak CROSSES that bound in a scenario no rule measures. Recorded rather than gated: the bound is a budget guard rather than a hard limit and the frame is 0.4 ms of 16.67. The honest fix if it ever matters is to hold the departed board until the camera has left it. (2) The p50 moves if kTransitSeconds or the island positions move. Re-measure then; do not re-cut for an improvement, which is how a bound starts flapping."
+    },
+    {
+      "id": "hearthfield-rain",
+      "binary": "bin/games/hearthfield",
+      "args": [
+        "--no-save",
+        "--grid",
+        "24",
+        "--sow",
+        "--autopilot",
+        "--rain"
+      ],
+      "bench_frames": 120,
+      "max_triangles": 280000,
+      "max_draws": 62,
+      "max_peak_draws": 67,
+      "measured": {
+        "triangles": 257274,
+        "draws": 57,
+        "peak_draws": 61
+      },
+      "_ui_surfaces_note": "+64 TRIANGLES ACROSS TWO STEPS ON 2026-08-29, and every one is accountable. +48 when hearthfield adopted ui::ButtonSkin, so each of the three HUD tabs became a 9-slice — nine quads where a flat one was one — and 3 x (18 - 2) is 48. Then +16 when the HUD BAR itself became a 9-slice card inset from the window edges, which is the same 18 - 2 once. Draws never moved, because it is all one sprite batch. `measured` is updated and the BOUNDS ARE NOT: this is a small cost knowingly taken, not an improvement, and re-cutting a bound that still has 8-9% headroom is how one starts flapping.",
+      "source": "../aether/docs/plans/2026-08-29-hearthfield-real-rain.md",
+      "covers": "THE ONLY RULE THAT TURNS THE WEATHER ON. hearthfield-board and -crossing both run dry, so when the background rain layer landed on 2026-08-29 captures-check stayed GREEN AND UNCHANGED — which reads as 'the new layer is free' and actually means 'nothing looks at it'. Adding 60,536 GPU particles and a render pass to a game moved no oracle at all, and that is the gap this rule closes. What it bounds is the layer's cost in the two quantities that are bit-exact: the emitter's draw is issued over the WHOLE capacity every frame, dead particles included as degenerate quads, so the triangle count carries `capacity * 2` = 131,072 exactly and a capacity change is visible as a six-figure jump. Draws catch the pass itself and the `kDrawInstanceChunk` split — 65,536 is exactly one chunk, so a capacity increase costs a draw as well.",
+      "note": "WHY THIS CAN BE AN ORACLE WHEN THE GPU PARTICLE PATH IS DECLARED NON-REPRODUCIBLE. `docs/perf/gpu-particle-baseline.md` states outright that the free-list claim order across compute invocations is nondeterministic, so particle IDENTITY is not stable run to run and no capture digest can exist for it (ADR-0013 requires that declaration and this is it). The COUNTS are a different quantity and are exact by construction: the draw covers the whole capacity whether one particle is alive or none, so triangles and draws do not depend on the claim order at all. Verified rather than argued — three consecutive runs gave 57 / 257,210 / 61 identically. THIS RULE DOES NOT SEE THE PICTURE, and that limit is the important one: it cannot tell rain from a curtain of static, it cannot see the zoom-relative sizing that makes the drops ~2 px at every half-height from 3 to 45, and it would stay green if the volume stopped following the camera. Those were verified by CAPTURING at three zooms and looking, which is the only method available and is not repeatable by a machine. MUTATION-PROVED 2026-08-29: doubling kSkyCapacity to 131,072 turns this rule red and leaves hearthfield-board green, because board runs dry. The converse holds too — breaking the dry gate turns board and crossing red and leaves THIS rule green, since the layer is already on here. Each rule catches precisely what the other cannot, which is the argument for three scenarios rather than one combined one. A DELIBERATE OMISSION: `--travel` is not combined with `--rain` here. One rule per scenario is what let the crossing rule's own mutation proof identify which measurement had gone wrong, and a rule measuring two things at once fails without saying which.",
+      "_next_rule_note": "the deferred list follows; nothing below runs."
+    }
+  ]
+}

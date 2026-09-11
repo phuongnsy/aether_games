@@ -47,3 +47,7 @@ add_subdirectory(tideworn)
 # game here with no executable, deliberately
 # (aether/docs/plans/2026-08-23-hearthfield-h0-skeleton.md 3e).
 add_subdirectory(hearthfield)
+
+# LAST: both gates in here glob the game directories, and one refuses at
+# configure time when its glob collapses, so it must see the games declared.
+add_subdirectory(tests)

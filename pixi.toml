@@ -90,3 +90,13 @@ tideworn = { cmd = "python tools/dev.py run tideworn", depends-on = [
 hearthfield = { cmd = "python tools/dev.py run hearthfield", depends-on = [
   "build",
 ], description = "play Hearthfield" }
+
+# The visual gate. ADR-0172 deleted these eleven checks instead of pointing them
+# across the repo boundary, so for a month four games could render anything and
+# the 1927-case suite stayed green. Restored 2026-09-11 from the engine's own
+# history, and checked BY the engine's checker via --root rather than a copy of
+# it. Needs a display, and a Debug/msvc or Release/clang tree — the recovered
+# digests are keyed by Config/compiler and match no other pair.
+captures-check = { cmd = "python tools/dev.py captures-check", depends-on = [
+  "build",
+], description = "re-run the games' graphical digests and cost budgets" }

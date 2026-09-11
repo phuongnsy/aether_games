@@ -305,14 +305,20 @@ models; aether keeps one fixture for the CONVENTION) and
 `asset_rules.moved.json` (the 52 rules that regenerate these assets — the tool
 studios stayed in the engine, so running them needs an aether checkout).
 
-**What did not come, and is worth rebuilding here.** Six capture oracles
-(`coin_rush-win`, `lantern`, `lantern-weather`, three `tideworn-*`) and three
-`hearthfield-*` cost budgets were deleted from aether rather than pointed
-across a repo boundary. Two CMake gates went the same way: `game_layer_layout`
-(a game's header layout) and `game_sim_layers_link_scene_core` (a game's sim
-layer links `scene_core`, never `scene` — the half that actually caught
-something, since the sim layers named `aether::scene` for a month while a
-comment claimed otherwise).
+**What did not come — RESTORED 2026-09-11.** Six capture oracles
+(`coin_rush-win`, `lantern`, `lantern-weather`, three `tideworn-*`), three
+`hearthfield-*` cost budgets and two CMake gates (`game_layer_layout`;
+`game_sim_layers_link_scene_core`, the half that actually caught something, since
+the sim layers named `aether::scene` for a month while a comment claimed
+otherwise) were deleted from aether rather than pointed across the boundary. For
+that month the whole suite could pass while a game rendered anything at all.
+
+They live in `tools/capture_rules.json` and `tests/CMakeLists.txt` now, recovered
+from the engine's history rather than rewritten — so **the digests are the
+ORIGINAL ones, and every one still passes.** That makes the gap measured instead
+of papered over: nothing in the engine moved a game's picture while nobody was
+looking. `pixi run captures-check` runs them, through the engine's own checker
+via `--root`. Do not copy that script here; one checker, two repos.
 
 **A CRASH THIS SPLIT CAUSED, AND ITS FIX (ADR-0171).** Six hearthfield UI tests
 crashed with SIGFPE inside libstdc++ on the first build here, and the cause is

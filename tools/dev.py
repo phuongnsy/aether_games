@@ -176,11 +176,19 @@ def find_binary(name: str) -> Path:
 
 
 def run(args: list[str]) -> int:
+    """Launch a game IN THE ENGINE'S ENVIRONMENT, which Windows needs.
+
+    A game links freetype and the rest out of the engine's conda prefix. On
+    Linux CMake bakes an absolute RPATH into that prefix, which is what makes
+    the repo's "they run from anywhere with nothing activated" true. WINDOWS
+    HAS NO RPATH: launched bare, every game here died with STATUS_DLL_NOT_FOUND
+    (0xC0000135) and nothing said which library. So the launcher supplies the
+    environment instead of relying on a mechanism that is Linux-only.
+    """
     if not args:
         sys.exit(f"usage: pixi run run <{'|'.join(GAMES)}|binary> [args...]")
     path = find_binary(args[0])
-    print("+", " ".join([str(path), *args[1:]]), flush=True)
-    return subprocess.run([str(path), *args[1:]]).returncode
+    return in_engine_env([str(path), *args[1:]])
 
 
 def debug(args: list[str]) -> int:
@@ -202,6 +210,20 @@ def debug(args: list[str]) -> int:
     return subprocess.run(cmd).returncode
 
 
+def captures_check(args: list[str]) -> int:
+    """The games' capture oracles and cost budgets, through the ENGINE'S checker.
+
+    `--root` rather than a copy of check_captures.py, on purpose: a second copy
+    drifts, and the engine's is the one carrying the per-oracle `--rerecord`
+    guard that stops a wrong digest being installed by hand. One checker, two
+    repos, and the engine's own sixteen oracles exercise the same code path.
+    """
+    require_configured()
+    return in_engine_env(
+        ["python", str(engine() / "tools" / "check_captures.py"),
+         "--root", str(ROOT), *args])
+
+
 COMMANDS = {
     "configure": configure,
     "build": build,
@@ -210,6 +232,7 @@ COMMANDS = {
     "test-game": test_game,
     "run": run,
     "debug": debug,
+    "captures-check": captures_check,
 }
 
 
