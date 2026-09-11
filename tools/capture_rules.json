@@ -313,5 +313,36 @@
       "note": "WHY THIS CAN BE AN ORACLE WHEN THE GPU PARTICLE PATH IS DECLARED NON-REPRODUCIBLE. `docs/perf/gpu-particle-baseline.md` states outright that the free-list claim order across compute invocations is nondeterministic, so particle IDENTITY is not stable run to run and no capture digest can exist for it (ADR-0013 requires that declaration and this is it). The COUNTS are a different quantity and are exact by construction: the draw covers the whole capacity whether one particle is alive or none, so triangles and draws do not depend on the claim order at all. Verified rather than argued — three consecutive runs gave 57 / 257,210 / 61 identically. THIS RULE DOES NOT SEE THE PICTURE, and that limit is the important one: it cannot tell rain from a curtain of static, it cannot see the zoom-relative sizing that makes the drops ~2 px at every half-height from 3 to 45, and it would stay green if the volume stopped following the camera. Those were verified by CAPTURING at three zooms and looking, which is the only method available and is not repeatable by a machine. MUTATION-PROVED 2026-08-29: doubling kSkyCapacity to 131,072 turns this rule red and leaves hearthfield-board green, because board runs dry. The converse holds too — breaking the dry gate turns board and crossing red and leaves THIS rule green, since the layer is already on here. Each rule catches precisely what the other cannot, which is the argument for three scenarios rather than one combined one. A DELIBERATE OMISSION: `--travel` is not combined with `--rain` here. One rule per scenario is what let the crossing rule's own mutation proof identify which measurement had gone wrong, and a rule measuring two things at once fails without saying which.",
       "_next_rule_note": "the deferred list follows; nothing below runs."
     }
+  ],
+  "_deferred": [
+    {
+      "id": "hearthfield-farm",
+      "binary": "bin/games/hearthfield",
+      "args": [
+        "--no-save",
+        "--grid",
+        "8",
+        "--rain",
+        "--autopilot",
+        "--width",
+        "1280",
+        "--height",
+        "720",
+        "--frames",
+        "400",
+        "--capture",
+        "{out}",
+        "--capture-start",
+        "390",
+        "--capture-frames",
+        "8"
+      ],
+      "digest": "sequence",
+      "expect": null,
+      "why_deferred": "SUPERSEDED 2026-09-08: THE BINARY LEFT THIS REPOSITORY. `bin/games/hearthfield` cannot be built here at all since ADR-0170/0172 moved the games to aether_games and deleted `games/`, so neither blocker below is the operative one any more -- this rule is deferred because its subject is gone, and it can only be recorded in the repository that now owns the game. Kept rather than deleted because the two findings below cost real measurement and would otherwise be re-derived there. NOTE for whoever moves it: `_deferred` is not `excluded`, and neither is read by captures-check -- this entry has never been run by anything. IT NEEDS `AETHER_NO_GPU_RAIN=1` IN ITS ENVIRONMENT, ADDED 2026-08-29 AND NOT OPTIONAL. This rule's command carries `--rain`, and on 2026-08-29 rain gained a GPU-simulated background layer whose particle identity is nondeterministic across runs by declaration (ADR-0013, gpu-particle-baseline.md). MEASURED, not inferred: two runs of this exact command now give two different PNG hashes, while the same command without `--rain` gives one hash twice. So the blocker below is no longer only the machine — as written this rule is unrecordable on ANY machine, and someone taking it to a clang box would stamp a digest that failed on its own second run. `AETHER_NO_GPU_RAIN=1` suppresses only the background layer; the colliding layer is CPU and deterministic and is what drives wetness, so the frame stays wet AND becomes byte-stable — verified: identical across two runs, and different from the dry frame, which is the pair of checks that proves it kept the thing this rule is for. HALF OF THIS GATE OPENED 2026-08-24: the wetness blocker was ADR-0118 (--capture-start ignored for single-frame captures), not a renderer defect, and rain now darkens the soil. What remains is the machine. THE VALUE MUST BE RECORDED ON A CLANG MACHINE. Every one of the seventeen entries in `oracles` is a Release/clang digest; a value stamped from the Release/msvc box that wrote this rule would fail for everyone else and pass here, which is worse than no entry because it looks like coverage. The ortho3d world-chunk plan hit the same wall on 2026-08-23 and deferred its rule for the same reason. The COMMAND is recorded now so that recording the value later is one run, not a re-derivation.",
+      "covers_when_recorded": "What the world digest structurally cannot: the picture. A board rendered upside down, a lost shadow, the flock vanishing, the rain not drawing — none of it moves an FNV-1a hash of the sim's integers. Note it will NOT cover wetness until the engine defect is fixed (a draw whose wetness was 0 on its first frame never renders wet), so record it after that or it bakes the bug in.",
+      "source": "docs/plans/2026-08-24-hearthfield-h6-oracle.md",
+      "_moved": "MOVED HERE 2026-09-11 from aether/tools/capture_rules.json, which is what its why_deferred asked for. Still deferred and still unrun: `_deferred` is read by nothing. What CHANGED by moving is that the blocker is no longer 'the binary is not in this repo' — hearthfield builds here — so the two findings below are now the operative ones, and this rule is recordable the day someone wants it."
+    }
   ]
 }
