@@ -103,10 +103,14 @@
 #include "aether/script/vm.hpp"
 #include "aether/ui/context.hpp"
 #include "aether/ui/screen.hpp"
+#include "infiltration/content/level.hpp"
+#include "infiltration/runtime/player.hpp"
 #include "example_base.hpp"
 #include "aether/core/log.hpp"
 
 using namespace aether;
+using namespace infiltration::content;
+using namespace infiltration::runtime;
 
 namespace {
 
@@ -146,272 +150,7 @@ constexpr Vec4 kMeterHot{0.95f, 0.25f, 0.25f, 1.0f};
               a.z + (b.z - a.z) * t, a.w + (b.w - a.w) * t};
 }
 
-// --- the level ---------------------------------------------------------------
-// The same corridor, wall and gap `nav_lab` bakes: a 20 m floor with a 2.5 m
-// slab from x = -10 to x = +4, so the only way between the halves is round the
-// open end. The geometry is duplicated rather than shared because a lab is a
-// probe and a slice is a consumer; they should be able to diverge.
-
-struct Level {
-  std::vector<Vec3> vertices;
-  std::vector<U32> indices;
-};
-
-void AddQuad(Level& l, Vec3 a, Vec3 b, Vec3 c, Vec3 d) {
-  const auto base = static_cast<U32>(l.vertices.size());
-  l.vertices.insert(l.vertices.end(), {a, b, c, d});
-  for (U32 i : {0u, 2u, 1u, 0u, 3u, 2u}) {
-    l.indices.push_back(base + i);
-  }
-}
-
-constexpr F32 kHalf = 10.0f;
-constexpr F32 kWallTop = 2.5f;
-constexpr F32 kWallEnd = 4.0f;
-constexpr F32 kWallZ = 0.4f;  // half-thickness
-
-// GEA §13.5.3.6's geometry, sized to the controller's own limits so the level
-// asks each question once. `max_climb` is 0.4 m below (`Human()` in
-// `character.hpp`), so 0.25 m is a kerb and 0.7 m is a wall.
-//
-// THE KERB IS ON THE ROUTE AND THE RAMP IS NOT, deliberately. The kerb is a
-// 0.25 m walkway strip across the only way round the wall's open end, so every
-// run crosses it twice and the assertions below are about it. The 0.7 m block
-// and its ramp sit in the north-east corner, off the patrol and off both
-// autopilot legs — because the guards are CROWD-driven over a navmesh built
-// from a flat floor (ADR-0181 owns their movement, not this controller), and
-// putting something they cannot climb on their chase path would look broken
-// for a reason that has nothing to do with §13.5.3.6.
-constexpr F32 kKerbTop = 0.25f;
-constexpr F32 kKerbX0 = 4.6f;
-constexpr F32 kKerbX1 = 7.4f;
-constexpr F32 kBlockTop = 0.7f;  // too tall to step: `max_climb` refuses it
-constexpr F32 kBlockZ0 = 6.2f;
-constexpr F32 kBlockZ1 = 8.0f;
-constexpr F32 kRampRun = 1.5f;  // 0.7 m over 1.5 m is ~25 degrees, inside 45
-
-Level MakeLevel() {
-  Level l;
-  AddQuad(l, Vec3{-kHalf, 0, -kHalf}, Vec3{kHalf, 0, -kHalf},
-          Vec3{kHalf, 0, kHalf}, Vec3{-kHalf, 0, kHalf});
-  for (const F32 z : {-kWallZ, kWallZ}) {
-    AddQuad(l, Vec3{-kHalf, 0, z}, Vec3{kWallEnd, 0, z},
-            Vec3{kWallEnd, kWallTop, z}, Vec3{-kHalf, kWallTop, z});
-  }
-  AddQuad(l, Vec3{-kHalf, kWallTop, -kWallZ}, Vec3{kWallEnd, kWallTop, -kWallZ},
-          Vec3{kWallEnd, kWallTop, kWallZ}, Vec3{-kHalf, kWallTop, kWallZ});
-
-  // The kerb: a low walkway strip with a face at each end, which is what makes
-  // it a STEP rather than a bump.
-  AddQuad(l, Vec3{kKerbX0, kKerbTop, -kHalf}, Vec3{kKerbX1, kKerbTop, -kHalf},
-          Vec3{kKerbX1, kKerbTop, kHalf}, Vec3{kKerbX0, kKerbTop, kHalf});
-  for (const F32 x : {kKerbX0, kKerbX1}) {
-    AddQuad(l, Vec3{x, 0, -kHalf}, Vec3{x, kKerbTop, -kHalf},
-            Vec3{x, kKerbTop, kHalf}, Vec3{x, 0, kHalf});
-  }
-
-  // The block and its ramp: the same 0.7 m gained two ways, one refused by
-  // `max_climb` and one accepted by the slope cutoff.
-  AddQuad(
-      l, Vec3{kKerbX0, kBlockTop, kBlockZ0}, Vec3{kKerbX1, kBlockTop, kBlockZ0},
-      Vec3{kKerbX1, kBlockTop, kBlockZ1}, Vec3{kKerbX0, kBlockTop, kBlockZ1});
-  AddQuad(l, Vec3{kKerbX0, 0, kBlockZ0}, Vec3{kKerbX1, 0, kBlockZ0},
-          Vec3{kKerbX1, kBlockTop, kBlockZ0},
-          Vec3{kKerbX0, kBlockTop, kBlockZ0});
-  // Rising WESTWARD onto the block's top, so the two meet: high edge at
-  // `kKerbX1`, foot at `kKerbX1 + kRampRun`.
-  AddQuad(l, Vec3{kKerbX1, kBlockTop, kBlockZ0},
-          Vec3{kKerbX1 + kRampRun, 0, kBlockZ0},
-          Vec3{kKerbX1 + kRampRun, 0, kBlockZ1},
-          Vec3{kKerbX1, kBlockTop, kBlockZ1});
-  return l;
-}
-
-// The level as a query, for the four consumers that need to ask about it:
-// perception's line of sight, cover, audio propagation, and now the character
-// controller. Written here rather than derived from the triangle soup because
-// the point is the SEAM — any `core::GeometryQuery3` satisfies all four, and
-// `physics::World` would do.
-//
-// BOXES AND ONE PLANE, RATHER THAN THE HAND-ROLLED Z-SLAB IT WAS. The wall used
-// to be two z-faces solved inline, which returned `+z` as the normal for BOTH
-// of them; that was invisible to line of sight (which wants a yes/no) and is
-// not invisible to a controller, which slides along the normal it is handed.
-// `core`'s own `Raycast(ray, AABB)` gives the true face, so the wall is the
-// same solid with correct normals.
-class WallQuery final : public GeometryQuery3 {
- public:
-  WallQuery()
-      : boxes_{// THE FLOOR, which this query did not have and now must. The
-               // old inline version knew only the wall, because its consumers
-               // asked about line of sight and nothing else; a controller asks
-               // "what am I standing on", and a query with no ground answers
-               // that the player is falling — forever, which is what the first
-               // run of this change did.
-               AABB{.min = Vec3{-kHalf, -1.0f, -kHalf},
-                    .max = Vec3{kHalf, 0.0f, kHalf}},
-               // the wall
-               AABB{.min = Vec3{-kHalf, 0.0f, -kWallZ},
-                    .max = Vec3{kWallEnd, kWallTop, kWallZ}},
-               // the kerb, on the route
-               AABB{.min = Vec3{kKerbX0, -1.0f, -kHalf},
-                    .max = Vec3{kKerbX1, kKerbTop, kHalf}},
-               // the block, off it
-               AABB{.min = Vec3{kKerbX0, -1.0f, kBlockZ0},
-                    .max = Vec3{kKerbX1, kBlockTop, kBlockZ1}}} {}
-
-  [[nodiscard]] std::optional<GeometryHit3> Raycast(const Ray3& ray,
-                                                    U32) const override {
-    std::optional<GeometryHit3> best;
-    for (Usize i = 0; i < boxes_.size(); ++i) {
-      const std::optional<RayHit3> hit = aether::Raycast(ray, boxes_[i]);
-      if (hit && (!best || hit->t < best->t)) {
-        best = GeometryHit3{.id = 2 + static_cast<U64>(i),
-                            .t = hit->t,
-                            .point = hit->point,
-                            .normal = hit->normal};
-      }
-    }
-    if (const std::optional<GeometryHit3> ramp = RampCast(ray);
-        ramp && (!best || ramp->t < best->t)) {
-      best = ramp;
-    }
-    return best;
-  }
-
-  [[nodiscard]] bool OverlapsSphere(const Sphere& s, U32) const override {
-    for (const AABB& box : boxes_) {
-      if (Overlaps(s, box)) {
-        return true;
-      }
-    }
-    return RampDistance(s.center) < s.radius;
-  }
-
-  // GEA §13.3.7.2, swept for real. THE LEVEL IS WHERE THE CONVEX-EDGE DEFECT
-  // LIVES — a ray passing beside the block's corner sees nothing while the
-  // capsule clips it — so a level query that only raycasts leaves the character
-  // controller's improvement on the table, whatever the controller does.
-  //
-  // The ramp is a PLANE and the seam's ray approximation is exact for a plane,
-  // so it keeps the same correction it always had; only the boxes needed a
-  // real sweep.
-  [[nodiscard]] ShapeCastHit3 SphereCast(
-      const Sphere& sphere, Vec3 delta, U32 mask,
-      std::span<ShapeContact3> out) const override {
-    ShapeCastHit3 result;
-    const F32 distance = Length(delta);
-    constexpr F32 kMinDistance = 0.0001f;
-    const Sphere probe{.center = sphere.center,
-                       .radius = sphere.radius * 0.999f};
-    if (OverlapsSphere(probe, mask)) {
-      if (!out.empty()) {
-        out[0] = ShapeContact3{.id = 0, .point = sphere.center, .normal = {}};
-      }
-      return ShapeCastHit3{
-          .t = 0.0f, .started_penetrating = true, .contacts = 1};
-    }
-    if (distance < kMinDistance) {
-      return result;
-    }
-    const Ray3 ray{.origin = sphere.center, .direction = delta / distance};
-    const auto consider = [&](U64 id, const std::optional<RayHit3>& hit,
-                              F32 travelled) {
-      if (!hit || travelled < 0.0f || travelled > distance) {
-        return;
-      }
-      const F32 t = travelled / distance;
-      constexpr F32 kTie = 1e-4f;
-      const ShapeContact3 contact{
-          .id = id, .point = hit->point, .normal = hit->normal};
-      if (t < result.t - kTie) {
-        result.t = t;
-        result.contacts = 1;
-        if (!out.empty()) {
-          out[0] = contact;
-        }
-      } else if (t <= result.t + kTie) {
-        result.t = std::min(result.t, t);
-        if (result.contacts < out.size()) {
-          out[result.contacts] = contact;
-        }
-        ++result.contacts;
-      }
-    };
-    for (Usize i = 0; i < boxes_.size(); ++i) {
-      const std::optional<RayHit3> hit =
-          SweepSphere(ray, sphere.radius, boxes_[i]);
-      consider(2 + static_cast<U64>(i), hit, hit ? hit->t : -1.0f);
-    }
-    if (const std::optional<GeometryHit3> ramp = RampCast(ray); ramp) {
-      const F32 cos_theta = std::abs(Dot(ray.direction, ramp->normal));
-      if (cos_theta > 0.02f) {
-        const RayHit3 as_hit{
-            .t = ramp->t, .point = ramp->point, .normal = ramp->normal};
-        consider(ramp->id, as_hit, ramp->t - sphere.radius / cos_theta);
-      }
-    }
-    return result;
-  }
-
- private:
-  // The ramp's plane: y = kBlockTop at x = kKerbX1, falling to 0 over
-  // `kRampRun`. Solid BELOW it, and bounded to the block's z span and the run.
-  static Vec3 RampNormal() {
-    const Vec3 n{kBlockTop, kRampRun, 0.0f};
-    return Normalize(n);
-  }
-  static bool OnRamp(Vec3 at) {
-    return at.x >= kKerbX1 && at.x <= kKerbX1 + kRampRun && at.z >= kBlockZ0 &&
-           at.z <= kBlockZ1;
-  }
-  // Signed distance to the ramp plane; negative is inside the solid.
-  static F32 RampDistance(Vec3 p) {
-    if (!OnRamp(p)) {
-      return 1e9f;
-    }
-    return Dot(p - Vec3{kKerbX1, kBlockTop, 0.0f}, RampNormal());
-  }
-  static std::optional<GeometryHit3> RampCast(const Ray3& ray) {
-    const Vec3 n = RampNormal();
-    const F32 denom = Dot(ray.direction, n);
-    if (denom > -1e-4f) {
-      return std::nullopt;  // parallel, or leaving rather than entering
-    }
-    const F32 t = Dot(Vec3{kKerbX1, kBlockTop, 0.0f} - ray.origin, n) / denom;
-    if (t < 0.0f || !OnRamp(ray.At(t))) {
-      return std::nullopt;
-    }
-    return GeometryHit3{.id = 9, .t = t, .point = ray.At(t), .normal = n};
-  }
-
-  std::array<AABB, 4> boxes_;
-};
-
 // --- the player --------------------------------------------------------------
-
-// §17.2.1's "motion simulation, collision detection", at the smallest honest
-// scope. Named constants at the top in `platformer.cpp`'s shape, because that
-// example is this engine's own precedent for a controller and §17.2.1's advice
-// is to study one genre rather than generalise.
-struct PlayerTuning {
-  F32 walk_speed = 2.2f;  // m/s, the default gait
-  F32 run_speed = 4.6f;   // m/s with the run modifier held
-  F32 accel = 18.0f;      // m/s^2 toward the intent
-  F32 brake = 22.0f;      // m/s^2 toward a stop — higher, so a stop is crisp
-};
-
-// The capsule and its limits. `max_climb` is what makes `kKerbTop` a kerb and
-// `kBlockTop` a wall, so the level's constants and this one are one decision.
-[[nodiscard]] nav::CharacterBody PlayerBody() {
-  nav::CharacterBody body;
-  body.radius = 0.35f;
-  body.height = 1.8f;
-  body.max_climb = 0.4f;
-  body.max_slope_degrees = 45.0f;
-  return body;
-}
-
 // --- the guards' policy ------------------------------------------------------
 // GEA §16.9.5.6: a finite state machine ON THE SCRIPT SIDE. The engine owns no
 // tree and no scorer, and the state-to-posture mapping is here rather than in
@@ -518,7 +257,7 @@ constexpr Usize kGuards = 2;
 // same treatment: a loop is the first thing here that can be UNFAIR rather than
 // merely wrong.
 
-constexpr Vec3 kStart{-7.0f, 0.0f, -8.0f};     // where the player comes in
+
 constexpr Vec3 kObjective{-4.0f, 0.0f, 5.0f};  // deep in the guards' half
 constexpr Vec3 kExtraction = kStart;           // ...and back out the way in
 constexpr F32 kArriveRadius = 1.2f;
@@ -949,7 +688,7 @@ class Infiltration final : public examples::ExampleGame {
     // its motion typically LAGS the player." The ease is on the PIVOT because
     // OrbitComponent::stiffness eases the angles and distance and deliberately
     // not the target (its own comment says why).
-    const Vec3 want = player_ + Vec3{0.0f, 1.2f, 0.0f};
+    const Vec3 want = player_.position + Vec3{0.0f, 1.2f, 0.0f};
     camera_pivot_ +=
         (want - camera_pivot_) * (1.0f - std::exp(-kCameraStiffness * dt));
     orbit_->pivot = camera_pivot_;
@@ -1088,14 +827,14 @@ class Infiltration final : public examples::ExampleGame {
   // checkpoint system, and the guards go back too or the second attempt starts
   // in a world the first one rearranged.
   void ResetRun() {
-    player_ = kStart;
-    player_velocity_ = Vec3{};
-    motion_ = nav::CharacterMotion{.position = kStart, .grounded = true};
-    desired_ = Vec3{};
+    player_.position = kStart;
+    player_.velocity = Vec3{};
+    player_.motion = nav::CharacterMotion{.position = kStart, .grounded = true};
+    player_.desired = Vec3{};
     kerb_airborne_ = 0;
     off_ground_ = 0;
-    player_loco_ = anim::LocomotionState{};
-    player_phase_ = 0.0f;
+    player_.loco = anim::LocomotionState{};
+    player_.phase = 0.0f;
     camera_pivot_ = kStart + Vec3{0.0f, 1.2f, 0.0f};  // the follow SNAPS on a
                                                       // cut; lag is for motion
     leg_ = 1;
@@ -1236,7 +975,7 @@ class Infiltration final : public examples::ExampleGame {
     const bool running =
         in.IsDown(platform::Key::kSpace) ||
         in.Trigger(platform::GamepadAxis::kRightTrigger) > 0.5f;
-    const F32 speed = running ? tune_.run_speed : tune_.walk_speed;
+    const F32 speed = running ? player_.tune.run_speed : player_.tune.walk_speed;
     return Normalize(forward * axis.y + right * axis.x) * speed * throttle;
   }
 
@@ -1260,9 +999,9 @@ class Infiltration final : public examples::ExampleGame {
     if (auto_leg_ == 0) {
       if (!disabled_[0]) {
         if (auto_seconds_ < kStalkBudget) {
-          const Vec3 to = crowd_.AgentPosition(guards_[0]) - player_;
+          const Vec3 to = crowd_.AgentPosition(guards_[0]) - player_.position;
           return LengthSquared(to) < 0.01f ? Vec3{}
-                                           : Normalize(to) * tune_.walk_speed;
+                                           : Normalize(to) * player_.tune.walk_speed;
         }
       } else {
         // ...and then LOITER SQUARE IN FRONT OF IT. Not decoration: the g4
@@ -1277,9 +1016,9 @@ class Infiltration final : public examples::ExampleGame {
           const Vec3 at = crowd_.AgentPosition(guards_[0]);
           const Vec3 forward{std::sin(guard_loco_[0].facing), 0.0f,
                              std::cos(guard_loco_[0].facing)};
-          const Vec3 to = at + forward * 1.3f - player_;
+          const Vec3 to = at + forward * 1.3f - player_.position;
           return LengthSquared(to) < 0.02f ? Vec3{}
-                                           : Normalize(to) * tune_.walk_speed;
+                                           : Normalize(to) * player_.tune.walk_speed;
         }
       }
       auto_leg_ = 1;
@@ -1297,14 +1036,14 @@ class Infiltration final : public examples::ExampleGame {
     if (w >= kRoute.size()) {
       return Vec3{};
     }
-    const Vec3 to = kRoute[w] - player_;
+    const Vec3 to = kRoute[w] - player_.position;
     // 0.8 m, INSIDE the objective's own 1.2 m radius, so arriving at the
     // objective waypoint always registers the objective first.
     if (LengthSquared(to) < 0.64f || auto_seconds_ > kLegBudget) {
       ++auto_leg_;
       auto_seconds_ = 0.0f;
     }
-    return LengthSquared(to) < 0.01f ? Vec3{} : Normalize(to) * tune_.run_speed;
+    return LengthSquared(to) < 0.01f ? Vec3{} : Normalize(to) * player_.tune.run_speed;
   }
 
   // Route 2 — GET IN A GUARD'S FACE. It steers at the point 2.2 m in FRONT of
@@ -1319,9 +1058,9 @@ class Infiltration final : public examples::ExampleGame {
       const Vec3 at = crowd_.AgentPosition(guards_[g]);
       const Vec3 forward{std::sin(guard_loco_[g].facing), 0.0f,
                          std::cos(guard_loco_[g].facing)};
-      const Vec3 to = at + forward * 2.2f - player_;
+      const Vec3 to = at + forward * 2.2f - player_.position;
       return LengthSquared(to) < 0.04f ? Vec3{}
-                                       : Normalize(to) * tune_.walk_speed;
+                                       : Normalize(to) * player_.tune.walk_speed;
     }
     return Vec3{};
   }
@@ -1357,9 +1096,9 @@ class Infiltration final : public examples::ExampleGame {
   // would put an invisible pillar over a body you are meant to walk past.
   void PublishCharacterCapsules() {
     capsules_.clear();
-    capsules_.push_back(nav::CharacterCapsule{.feet = motion_.position,
-                                              .radius = body_.radius,
-                                              .height = body_.height,
+    capsules_.push_back(nav::CharacterCapsule{.feet = player_.motion.position,
+                                              .radius = player_.body.radius,
+                                              .height = player_.body.height,
                                               .layer = kCharacterLayer,
                                               .id = kPlayerCapsuleId});
     for (Usize g = 0; g < kGuards; ++g) {
@@ -1369,7 +1108,7 @@ class Infiltration final : public examples::ExampleGame {
       capsules_.push_back(
           nav::CharacterCapsule{.feet = crowd_.AgentPosition(guards_[g]),
                                 .radius = kGuardRadius,
-                                .height = body_.height,
+                                .height = player_.body.height,
                                 .layer = kCharacterLayer,
                                 .id = kGuardCapsuleId + g});
     }
@@ -1381,7 +1120,7 @@ class Infiltration final : public examples::ExampleGame {
         continue;
       }
       const Vec3 at = crowd_.AgentPosition(guards_[g]);
-      const Vec3 to = player_ - at;
+      const Vec3 to = player_.position - at;
       const F32 range = Length(to);
       const Vec3 forward{std::sin(guard_loco_[g].facing), 0.0f,
                          std::cos(guard_loco_[g].facing)};
@@ -1394,53 +1133,13 @@ class Infiltration final : public examples::ExampleGame {
   }
 
   void StepThePlayer(const app::AppContext& ctx, F32 dt) {
-    // ACCELERATION STAYS HERE, COLLISION GOES THERE. `nav::MoveCharacter` owns
-    // the sweep, the slide, the ground and the slope cutoff; gaits, intent and
-    // the accel/brake feel are a game's business and stay at the call site.
-    const Vec3 target = Intent(ctx, dt);
-    const F32 rate = LengthSquared(target) > 1e-6f ? tune_.accel : tune_.brake;
-    const Vec3 gap = target - desired_;
-    const F32 step = rate * dt;
-    desired_ = Length(gap) <= step ? target : desired_ + Normalize(gap) * step;
-
-    // b1 — THE GUARDS ARE PART OF THE WORLD NOW (GEA 13.5.3.6, ADR pending).
-    // Until 2026-09-10 the player walked straight through them, which is what
-    // let ADR-0202's reach land a takedown while AIMED STRAIGHT UP: the
-    // autopilot closed to 0.4 m, the player stood inside the guard's hit boxes,
-    // and a vertical ray found a thigh 0.11 m up.
-    //
-    // The blocker is the guard's MOVEMENT capsule, not its sixteen hit boxes —
-    // 13.5.3.6 keeps those for "bullet hit detection" and moves the character
-    // with a capsule cast, which is what `MoveCharacter` is.
+    // The two halves that need the APP stay here, in the order they ran:
+    // intent comes from input or the autopilot, and the capsule list is
+    // published from the live guards before anything is swept against it.
+    const Vec3 intent = Intent(ctx, dt);
     PublishCharacterCapsules();
-    const nav::CharacterObstacles world{walls_, capsules_, kPlayerCapsuleId};
-    motion_ = nav::MoveCharacter(motion_, desired_, world, body_, dt);
-    // ...and then RESOLVED, because seeing is not the same as being kept out.
-    // A ray offset laterally by more than a capsule's radius misses it
-    // entirely, so the probe above never sees a guard the player walks PAST —
-    // measured at 0.41 m of a stationary guard's centre against the 0.70 m the
-    // two capsules occupy. §13.5.3.6: "Collisions are resolved manually."
-    motion_.position =
-        nav::SeparateFromCharacters(motion_.position, body_.radius,
-                                    body_.height, capsules_, kPlayerCapsuleId);
-    // The floor is 20 m square with no parapet, so the edge is a clamp rather
-    // than geometry — the level's omission, not the controller's.
-    motion_.position.x = std::clamp(motion_.position.x, -kHalf + body_.radius,
-                                    kHalf - body_.radius);
-    motion_.position.z = std::clamp(motion_.position.z, -kHalf + body_.radius,
-                                    kHalf - body_.radius);
-    player_ = motion_.position;
-    // §13.5.3.6's fifth bullet, and it is one assignment: the ACHIEVED velocity
-    // is what the locomotion solver sees, so a player pressed into the wall
-    // stops walking on the spot instead of moonwalking.
-    player_velocity_ = motion_.velocity;
-    // ADR-0184's SOLVER, ON A PLAYER. It takes a velocity and returns gait
-    // indices, a blend, a rate and a yaw — and it does not care that this
-    // velocity came from a keyboard rather than from a crowd. That is the claim
-    // the interface makes, tested here for the first time.
-    player_loco_ = anim::SolveLocomotion(player_velocity_, player_loco_.facing,
-                                         LocoConfig(), dt);
-    player_phase_ += dt * player_loco_.rate;
+    StepPlayer(player_, intent, walls_, capsules_, kPlayerCapsuleId,
+                        kHalf, LocoConfig(), dt);
   }
 
   // g4 — THE TAKEDOWN, and what it deliberately leaves undone.
@@ -1467,7 +1166,7 @@ class Infiltration final : public examples::ExampleGame {
   // now says which limb it landed on, and a takedown that lands on the level
   // instead is refused.
   [[nodiscard]] bool TryTakedown(Usize g, Vec3 at, Vec3 forward) {
-    const Vec3 to = player_ - at;
+    const Vec3 to = player_.position - at;
     const F32 range = Length(to);
     if (range > kTakedownRange || range < 1e-4f) {
       return false;
@@ -1479,9 +1178,9 @@ class Infiltration final : public examples::ExampleGame {
     // A guard within `kTakedownRange` whose hit boxes the player is NOT looking
     // at is not taken down — the range check above is necessary and no longer
     // sufficient.
-    const Vec3 chest = player_ + Vec3{0.0f, 1.2f, 0.0f};
-    const Vec3 aim{std::sin(player_loco_.facing), 0.0f,
-                   std::cos(player_loco_.facing)};
+    const Vec3 chest = player_.position + Vec3{0.0f, 1.2f, 0.0f};
+    const Vec3 aim{std::sin(player_.loco.facing), 0.0f,
+                   std::cos(player_.loco.facing)};
     const std::optional<GeometryHit3> hit = body_world_.Raycast(
         Ray3{.origin = chest, .direction = aim}, kBodyLayer);
     if (!hit || hit->t > kTakedownRange || !IsHitBox(hit->id) ||
@@ -1536,7 +1235,7 @@ class Infiltration final : public examples::ExampleGame {
       // always wall-separated and never face each other. A player is the target
       // that compromise was standing in for.
       const Vec3 eye = at + Vec3{0.0f, 1.6f, 0.0f};
-      const Vec3 chest = player_ + Vec3{0.0f, 1.2f, 0.0f};
+      const Vec3 chest = player_.position + Vec3{0.0f, 1.2f, 0.0f};
       const Vec3 forward{std::sin(guard_loco_[g].facing), 0.0f,
                          std::cos(guard_loco_[g].facing)};
       if (takedown) {
@@ -1546,7 +1245,7 @@ class Infiltration final : public examples::ExampleGame {
         // A REFUSAL IN REACH IS THE EVIDENCE, and it has to be counted where it
         // happens: "the run did not end in a takedown" is also what a broken
         // button, an unspawned guard and a missing hit box all look like.
-        if (Length(player_ - at) <= kTakedownRange) {
+        if (Length(player_.position - at) <= kTakedownRange) {
           ++takedown_refused_;
         }
       }
@@ -1899,7 +1598,7 @@ class Infiltration final : public examples::ExampleGame {
     // behind a wall while the player stands in the open, and the mix should
     // follow the character rather than the framing.
     const audio::Listener listener{.position =
-                                       player_ + Vec3{0.0f, 1.6f, 0.0f}};
+                                       player_.position + Vec3{0.0f, 1.6f, 0.0f}};
     audio_->SetListener(listener);
     // The regions are the two halves of the corridor, which is what makes the
     // indirect path answerable without tracing it (§14.4.5.3's rule of thumb).
@@ -1945,19 +1644,19 @@ class Infiltration final : public examples::ExampleGame {
           aware_[g].confidence < kCatchConfidence) {
         continue;
       }
-      if (Length(crowd_.AgentPosition(guards_[g]) - player_) < kCatchRange) {
+      if (Length(crowd_.AgentPosition(guards_[g]) - player_.position) < kCatchRange) {
         outcome_ = Outcome::kCaught;
         LogInfo(
             "infiltration: SPOTTED by guard {} at {:.1f} m after {} steps — "
             "the run is over",
-            g, Length(crowd_.AgentPosition(guards_[g]) - player_), steps_);
+            g, Length(crowd_.AgentPosition(guards_[g]) - player_.position), steps_);
         return;
       }
     }
     // TWO LEGS ON PURPOSE: the second is walked under pressure, with the meter
     // already warm and a guard already looking for you.
     const Vec3 goal = leg_ == 1 ? kObjective : kExtraction;
-    if (Length(player_ - goal) >= kArriveRadius) {
+    if (Length(player_.position - goal) >= kArriveRadius) {
       return;
     }
     if (leg_ == 1) {
@@ -2221,7 +1920,7 @@ class Infiltration final : public examples::ExampleGame {
       if (disabled_[g]) {
         continue;
       }
-      const Vec3 to = crowd_.AgentPosition(guards_[g]) - player_;
+      const Vec3 to = crowd_.AgentPosition(guards_[g]) - player_.position;
       closest_guard_ = std::min(closest_guard_, Length(Vec3{to.x, 0.0f, to.z}));
     }
     if (!asserted_apart_ && steps_ > 400) {
@@ -2309,7 +2008,7 @@ class Infiltration final : public examples::ExampleGame {
       bool watching = false;
       for (Usize g = 0; g < kGuards; ++g) {
         const Vec3 at = crowd_.AgentPosition(guards_[g]);
-        const Vec3 to = player_ - at;
+        const Vec3 to = player_.position - at;
         const F32 range = Length(to);
         const Vec3 forward{std::sin(guard_loco_[g].facing), 0.0f,
                            std::cos(guard_loco_[g].facing)};
@@ -2339,7 +2038,7 @@ class Infiltration final : public examples::ExampleGame {
     // second attempt; the player has moved by ~5 mm of the first acceleration
     // step, hence a radius rather than an equality.
     if (!asserted_retry_ && retries_ > 0 && steps_ == 1 &&
-        Length(player_ - kStart) < 0.1f && exposure_ < 0.05f) {
+        Length(player_.position - kStart) < 0.1f && exposure_ < 0.05f) {
       asserted_retry_ = true;
       say(std::format("RETRY {} restored the start state — 'back to the "
                       "beginning of the current state'",
@@ -2354,8 +2053,8 @@ class Infiltration final : public examples::ExampleGame {
     // one that means something: climbing 0.25 m proves the step UP, and never
     // reporting a fall while over the strip proves the SNAP — which is the
     // whole of bullet 3, and the half a "did it get there" check cannot see.
-    const bool over_kerb = player_.x > kKerbX0 && player_.x < kKerbX1;
-    if (over_kerb && !motion_.grounded) {
+    const bool over_kerb = player_.position.x > kKerbX0 && player_.position.x < kKerbX1;
+    if (over_kerb && !player_.motion.grounded) {
       ++kerb_airborne_;
     }
     // THE HEIGHT INVARIANT, and it is here because a WIREFRAME CANNOT SETTLE
@@ -2364,7 +2063,7 @@ class Infiltration final : public examples::ExampleGame {
     // debug view of a stick figure on a wireframe floor is exactly as
     // inconclusive the second time. The controller owns `position.y` now, so
     // the floor and the kerb are the only two heights it may report.
-    if (player_.y < -0.05f || player_.y > kKerbTop + 0.05f) {
+    if (player_.position.y < -0.05f || player_.position.y > kKerbTop + 0.05f) {
       ++off_ground_;
     }
     if (!asserted_grounded_ && steps_ > 600) {
@@ -2381,11 +2080,11 @@ class Infiltration final : public examples::ExampleGame {
             off_ground_, steps_);
       }
     }
-    if (!asserted_kerb_ && motion_.stepped_up && over_kerb) {
+    if (!asserted_kerb_ && player_.motion.stepped_up && over_kerb) {
       asserted_kerb_ = true;
       say(std::format("the player STEPPED UP onto the {:.2f} m kerb — "
                       "max_climb {:.2f} m accepted it",
-                      player_.y, body_.max_climb)
+                      player_.position.y, player_.body.max_climb)
               .c_str());
     }
     // EITHER SIDE, and the first version said `x > kKerbX1`. The route turns
@@ -2393,7 +2092,7 @@ class Infiltration final : public examples::ExampleGame {
     // assertion naming one side could not fire — the same "a check that cannot
     // fail" shape this example has now recorded three times.
     if (!asserted_kerb_down_ && asserted_kerb_ && !over_kerb &&
-        motion_.grounded && player_.y < kKerbTop * 0.5f) {
+        player_.motion.grounded && player_.position.y < kKerbTop * 0.5f) {
       asserted_kerb_down_ = true;
       say(std::format("the player STEPPED DOWN off it without a fall — {} "
                       "airborne frames over the strip",
@@ -2452,8 +2151,8 @@ class Infiltration final : public examples::ExampleGame {
     if (gaits_.empty()) {
       return;
     }
-    PoseFor(player_loco_, player_phase_);
-    DrawSkeleton(frame, player_, player_loco_.facing, kPlayerBone);
+    PoseFor(player_.loco, player_.phase);
+    DrawSkeleton(frame, player_.position, player_.loco.facing, kPlayerBone);
   }
 
   void DrawGuards(RenderFrame& frame) {
@@ -2562,17 +2261,17 @@ class Infiltration final : public examples::ExampleGame {
   void BuildPanel() {
     auto& player = inspector_.AddSection("Player (GEA 17.2.1)");
     player.Slider("walk m/s",
-                  inspector::Bind<F32>([this] { return tune_.walk_speed; },
-                                       [this](F32 v) { tune_.walk_speed = v; }),
+                  inspector::Bind<F32>([this] { return player_.tune.walk_speed; },
+                                       [this](F32 v) { player_.tune.walk_speed = v; }),
                   0.5f, 8.0f, 0.1f);
     player.Label("speed", [this] {
-      return std::format("{:.2f} m/s", Length(player_velocity_));
+      return std::format("{:.2f} m/s", Length(player_.velocity));
     });
     player.Label("gait", [this] {
-      return player_loco_.idle
+      return player_.loco.idle
                  ? std::string("idle")
-                 : std::format("{} -> {} @ {:.2f}", player_loco_.gait_a,
-                               player_loco_.gait_b, player_loco_.rate);
+                 : std::format("{} -> {} @ {:.2f}", player_.loco.gait_a,
+                               player_.loco.gait_b, player_.loco.rate);
     });
 
     auto& heard = inspector_.AddSection("Heard (GEA 14.4.5.3)");
@@ -2605,7 +2304,7 @@ class Infiltration final : public examples::ExampleGame {
     flow.Label("objective", [this] {
       return std::format(
           "leg {} of 2, {:.1f} m to go", leg_,
-          Length(player_ - (leg_ == 1 ? kObjective : kExtraction)));
+          Length(player_.position - (leg_ == 1 ? kObjective : kExtraction)));
     });
     flow.Label("exposure", [this] { return std::format("{:.2f}", exposure_); });
     flow.Label("retries", [this] { return std::format("{}", retries_); });
@@ -2621,16 +2320,9 @@ class Infiltration final : public examples::ExampleGame {
   nav::NavMesh mesh_;
   nav::Crowd crowd_;
   WallQuery walls_;
-  nav::CharacterBody body_ = PlayerBody();
-  nav::CharacterMotion motion_{.position = kStart, .grounded = true};
-  Vec3 desired_{};  // the smoothed intent, before collision
+  PlayerState player_;
 
   // the player
-  PlayerTuning tune_;
-  Vec3 player_{-7.0f, 0.0f, -8.0f};
-  Vec3 player_velocity_{};
-  anim::LocomotionState player_loco_{};
-  F32 player_phase_ = 0.0f;
   int autopilot_ = 0;  // 0 = hands; 1 = the winning route; 2 = the losing one
   U64 steps_ = 0;
   Usize auto_leg_ = 0;
