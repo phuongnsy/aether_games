@@ -221,7 +221,6 @@ constexpr F32 kCameraStiffness = 6.0f;
 // the takedown, draining to nothing over this. Short, because a guard being
 // choked out is not a slow collapse — and long enough that the body is holding
 // its own pose rather than being dropped into one.
-constexpr F32 kLimpFadeSeconds = 0.35f;
 // N·m. Measured rather than guessed: 400 holds a 10 kg limb whose weight asks
 // for about 42, and a position motor at a 60 Hz step cannot slew a limb it did
 // not start on top of anyway (event:2026-09-08#94).
@@ -1371,11 +1370,7 @@ class Infiltration final : public examples::ExampleGame {
                            agent_->Skeleton(), gaits_, map_,
                            guard_.loco[g], guard_.phase[g],
                            LiveToWorld(g), rag_targets_);
-        for (Usize b = 0; b < rag_[g].bodies.size(); ++b) {
-          // 13.5.1.2's impulse move, NOT a teleport. The velocity it leaves
-          // behind is what a limb inherits when the motion type switches.
-          (void)body_world_.MoveBody(rag_[g].bodies[b], rag_targets_[b], dt);
-        }
+        HoldOnTargets(rag_[g], body_world_, rag_targets_, dt);
         continue;
       }
       // 1. the animated pose the motors chase. It is FROZEN — a downed guard's
@@ -1387,28 +1382,7 @@ class Infiltration final : public examples::ExampleGame {
       anim::PoseToRagdollTargets(rag_rig_, pose_.globals, LimpToWorld(rag_[g]),
                                  rag_targets_);
       // 2. drive the constraints toward it, at whatever authority is left.
-      const std::span<const anim::RagdollBone> bones = rag_rig_.Bones();
-      Usize joint = 0;
-      for (Usize b = 0; b < bones.size(); ++b) {
-        const Usize parent = bones[b].parent_bone;
-        if (parent == anim::RagdollBone::kNoBone ||
-            joint >= rag_[g].joints.size()) {
-          continue;
-        }
-        const Quat relative =
-            Conjugate(rag_targets_[parent].rotation) * rag_targets_[b].rotation;
-        (void)body_world_.SetConstraintTarget(rag_[g].joints[joint], relative);
-        (void)body_world_.SetConstraintMotorScale(rag_[g].joints[joint],
-                                                  rag_[g].power);
-        ++joint;
-      }
-      // §13.5.3.8: "a simple LERP blend between animation-generated and
-      // physics-generated poses usually doesn't work very well, because the
-      // physics pose very quickly diverges … As such, we may want to use
-      // powered constraints during the transition." So authority DRAINS rather
-      // than the pose being blended, and the body is holding its own animated
-      // pose at the moment it starts to let go.
-      rag_[g].power = std::max(0.0f, rag_[g].power - dt / kLimpFadeSeconds);
+      DriveLimp(rag_[g], body_world_, rag_rig_, rag_targets_, dt);
     }
     // UNCONDITIONALLY NOW, where it used to run only while something was limp:
     // a game-driven body does not move until the world steps, so hit boxes that
