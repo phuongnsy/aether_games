@@ -124,7 +124,6 @@ constexpr const char* kAgentModel = "models/human_0.glb";
 // the sandbox ships; a real game would have footsteps gated on the gait.
 constexpr const char* kStepClip = "audio/ambient.wav";
 
-constexpr Vec4 kPlayerBone{0.35f, 0.80f, 1.00f, 1.0f};
 constexpr Vec4 kGuardBone{0.95f, 0.55f, 0.35f, 1.0f};
 constexpr Vec4 kCone{0.45f, 0.85f, 0.55f, 1.0f};
 constexpr Vec4 kSure{0.35f, 1.00f, 0.45f, 1.0f};
@@ -626,7 +625,8 @@ class Infiltration final : public examples::ExampleGame {
     DrawLevel(frame, level_);
     DrawCover(frame);
     DrawObjective(frame, leg_);
-    DrawPlayer(frame);
+    DrawPlayer(frame, pose_, clips_->Skeleton(), agent_->Skeleton(),
+               gaits_, map_, player_);
     DrawGuards(frame);
     return frame;
   }
@@ -1981,14 +1981,6 @@ class Infiltration final : public examples::ExampleGame {
   // ADR-0184/0192 describe, with the gesture layer added by the caller.
 
 
-  void DrawPlayer(RenderFrame& frame) {
-    if (gaits_.empty()) {
-      return;
-    }
-    PoseFor(pose_, clips_->Skeleton(), agent_->Skeleton(), gaits_, map_,
-            player_.loco, player_.phase);
-    DrawSkeleton(frame, agent_->Skeleton(), pose_.local, pose_.globals, player_.position, player_.loco.facing, kPlayerBone);
-  }
 
   void DrawGuards(RenderFrame& frame) {
     if (gaits_.empty()) {

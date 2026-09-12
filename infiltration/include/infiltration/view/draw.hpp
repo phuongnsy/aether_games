@@ -29,6 +29,7 @@
 #include "aether/scene_core/scene.hpp"
 #include "aether/core/types.hpp"
 #include "infiltration/content/level.hpp"
+#include "infiltration/runtime/player.hpp"
 
 namespace infiltration::view {
 
@@ -212,5 +213,23 @@ inline void PoseFor(PoseBuffers& buf, const resources::Skeleton& clip_rig,
     }
     buf.local.resize(agent_rig.JointCount());
     anim::RetargetPose(buf.clip, map, 1.0f, buf.local);
+}
+
+// The player, drawn as bones — there is no character mesh in the slice, and a
+// skeleton is what makes a gait legible.
+constexpr Vec4 kPlayerBone{0.35f, 0.80f, 1.00f, 1.0f};
+
+inline void DrawPlayer(RenderFrame& frame, PoseBuffers& buf,
+                       const resources::Skeleton& clip_rig,
+                       const resources::Skeleton& agent_rig,
+                       std::span<const anim::LocomotionGait> gaits,
+                       const anim::RetargetMap& map,
+                       const runtime::PlayerState& player) {
+    if (gaits.empty()) {
+      return;
+    }
+    PoseFor(buf, clip_rig, agent_rig, gaits, map,
+            player.loco, player.phase);
+    DrawSkeleton(frame, agent_rig, buf.local, buf.globals, player.position, player.loco.facing, kPlayerBone);
 }
 }  // namespace infiltration::view
