@@ -181,6 +181,118 @@
       "source": "../aether/docs/plans/2026-08-15-displaced-water-mesh.md",
       "covers": "the waterline at a STORM sea state (clock 420 = the wind schedule's 24 m/s peak), where the Gerstner displacement is largest and the projected grid's near edge runs out soonest — the case the two calm waterline oracles cannot reach",
       "note": "Added 2026-08-16 after a user screenshot showed raw sky under the sea that the existing gates could not see. THE POINT OF THIS ENTRY: tideworn-waterline and tideworn-underwater both pin ONE sea state (--start-clock 300), and the defect lived entirely in the storm band — the mesh's near edge is displaced upward by crests of metres, and the straddle fill's distance cut stopped backing it up, leaving a band neither drew. Reproduced here first, then fixed (the fill's cut removed; it is a backstop the mesh overdraws, so a missing fill fragment is a hole while a wasted one costs nothing). Clock 420 is the schedule's wind peak, so this is the worst case by construction rather than by a camera that happened to catch it. Stable 3/3."
+    },
+    {
+      "id": "infiltration-ragdoll",
+      "binary": "bin/games/infiltration",
+      "args": [
+        "--autopilot",
+        "1",
+        "--width",
+        "1280",
+        "--height",
+        "720",
+        "--frames",
+        "230",
+        "--capture",
+        "{out}",
+        "--capture-start",
+        "213",
+        "--capture-frames",
+        "3"
+      ],
+      "digest": "sequence",
+      "expect": {
+        "Debug/msvc": "d379652f732b89f72ef17e517382f78b"
+      },
+      "runs": 3,
+      "source": "../aether/docs/perf/capture-oracles.md",
+      "covers": "THE ONLY THING THAT LOOKS AT THE VERTICAL SLICE. examples/infiltration is the non-lab consumer of eight ADRs (0184, 0189-0196) and until this rule existed nothing in the DoD list would have noticed if it rendered an empty room -- which it did for four days, drawing its player and both guards 84 m in the air behind ten green numeric assertions (event:2026-09-08#54). Framed on the limp guard, so one digest covers the retarget (a rig at the wrong scale moves every joint), the ragdoll writing locals back through GEA 12.9's stage 5, the masked gesture layer on the live guard, the detection HUD and the follow camera's lag.",
+      "note": "CUT AGAINST A DEFECT THAT ACTUALLY HAPPENED, which is Stroustrup 26.3's selection rule for a regression suite -- GEA is silent on testing. MUTATION-PROVED by reverting BuildRetargetMap's rest-pose arguments, the real 84 m bug rather than a proxy for it. `runs` is 3 because a capture over a PHYSICS simulation is a bet on determinism and the bet is worth re-checking every time: Jolt is measured bit-identical (ADR-0180, and again with constraints in ADR-0195) and --autopilot 1 reproduces 1096 steps and 0.24 m / 1.24 m across fresh processes, but a digest recorded from one run is a threshold with a hash for a face. THE FONT IS IN THE PICTURE: the HUD draws text, so a font change or an atlas repack fails this for a reason unrelated to the slice. That is the price of framing the HUD in shot, and the HUD is half of what the rule covers. DIGEST MOVED 2026-09-08 for ADR-0198: the player's movement changed from a slice-local kinematic step to nav::MoveCharacter, and the level gained a kerb, a block and a ramp, so both of these rules were RE-RECORDED rather than repaired. That is why `--rerecord` exists as a flag distinct from `--record`, which refuses a drift by design. MOVED AGAIN 2026-09-10 for ADR-0202, and only THIS rule: the guards carry GEA 13.5.3.6 hit boxes from spawn and a takedown switches those same bodies to physics-driven instead of building new ones, so the limp guard inherits the walk's momentum and lands in a different sprawl. Looked at before re-recording: a body flat on the floor, legs bent, arms out, 1.51 m across. `infiltration-caught` was UNCHANGED by the same commit, which is the scoping evidence -- route 2 has no ragdoll in frame. Moved to this repo 2026-09-12 (i1): same code, same digest, new home."
+    },
+    {
+      "id": "infiltration-caught",
+      "binary": "bin/games/infiltration",
+      "args": [
+        "--autopilot",
+        "2",
+        "--width",
+        "1280",
+        "--height",
+        "720",
+        "--frames",
+        "430",
+        "--capture",
+        "{out}",
+        "--capture-start",
+        "420",
+        "--capture-frames",
+        "2"
+      ],
+      "digest": "sequence",
+      "expect": {
+        "Debug/msvc": "d4edec022e76c1732900187248652005"
+      },
+      "runs": 3,
+      "source": "../aether/docs/perf/capture-oracles.md",
+      "covers": "GEA 16.10's FAIL STATE, which exists for about forty frames in a ten-second run and is otherwise unobservable. The SPOTTED card, its scrim over a frozen world, the Retry button and the detection meter at saturation -- the half of the game-flow FSM that a route which always wins never reaches.",
+      "note": "The second route exists because a loop whose fail state has never executed is the same shape as a gate that cannot fail, and this repository has recorded that shape ten times. Route 2 walks to the point 2.2 m in FRONT of a guard and loses on purpose; the catch lands at step 403, so the capture window is placed just after it and before the autopilot's automatic retry at +0.75 s. DIGEST MOVED 2026-09-08 for ADR-0198: the player's movement changed from a slice-local kinematic step to nav::MoveCharacter, and the level gained a kerb, a block and a ramp, so both of these rules were RE-RECORDED rather than repaired. That is why `--rerecord` exists as a flag distinct from `--record`, which refuses a drift by design. MOVED AGAIN 2026-09-10 for characters-block-characters: the player and the guards now collide (GEA 13.5.3.6's movement capsule, not the hit boxes), so route 2's player stands BESIDE the guard instead of inside it -- looked at before re-recording, two separated figures where there were two interpenetrating ones. `infiltration-ragdoll` was UNCHANGED by the same commit, because route 1's takedown fires at 1.70 m and the blocking never binds there. The plan predicted all three would move; two did. Moved to this repo 2026-09-12 (i1): same code, same digest, new home."
+    },
+    {
+      "id": "infiltration-camera",
+      "binary": "bin/games/infiltration",
+      "args": [
+        "--autopilot",
+        "2",
+        "--width",
+        "1280",
+        "--height",
+        "720",
+        "--frames",
+        "320",
+        "--capture",
+        "{out}",
+        "--capture-start",
+        "300",
+        "--capture-frames",
+        "2"
+      ],
+      "digest": "sequence",
+      "expect": {
+        "Debug/msvc": "9a61074388db8da4f9494ec134e32c38"
+      },
+      "runs": 3,
+      "source": "../aether/docs/perf/capture-oracles.md",
+      "covers": "GEA 13.5.3.7's CAMERA COLLISION, which the other two infiltration rules cannot see. The camera is pulled in from its desired 9 m for 36% of route 2, and BOTH existing digests were byte-identical across the change that added it -- ragdoll because route 1 is never occluded, caught because its window at step 420 is after the occlusion ends at 371. So the feature had a number and no picture, which is the hole the 84-metre retarget bug lived in. Framed at step 300, mid-occlusion, where the resolver is actively holding the camera off the wall.",
+      "note": "THE THIRD RULE ON ONE EXAMPLE, and it is here because the first two PROVED they could not cover this: a change that moves neither of a pair is either inert or unwatched, and this one was measurably not inert (123 occluded steps became 0). Mutation-proved by leaving `distance_limit` at infinity, which is the whole feature reverted rather than a proxy for it. Route 2 rather than route 1 because route 1's autopilot never touches the camera and is therefore never occluded -- the only reproducible occluding case in the tree. `runs` is 3 for the same reason the other two are: this frames a physics simulation and a digest recorded from one run is a threshold with a hash for a face. MOVED AGAIN 2026-09-10 for characters-block-characters: the player and the guards now collide (GEA 13.5.3.6's movement capsule, not the hit boxes), so route 2's player stands BESIDE the guard instead of inside it -- looked at before re-recording, two separated figures where there were two interpenetrating ones. `infiltration-ragdoll` was UNCHANGED by the same commit, because route 1's takedown fires at 1.70 m and the blocking never binds there. The plan predicted all three would move; two did. Moved to this repo 2026-09-12 (i1): same code, same digest, new home."
+    },
+    {
+      "id": "infiltration-run",
+      "binary": "bin/games/infiltration",
+      "args": [
+        "--autopilot",
+        "1",
+        "--width",
+        "1280",
+        "--height",
+        "720",
+        "--frames",
+        "600",
+        "--capture",
+        "{out}",
+        "--capture-start",
+        "560",
+        "--capture-frames",
+        "8"
+      ],
+      "digest": "sequence",
+      "runs": 2,
+      "source": "../aether/docs/plans/2026-09-11-infiltration-game.md",
+      "covers": "THE END of the winning route, which the other three cannot reach. infiltration-ragdoll samples steps 213-215 of route 1 and stops at frame 230, so the objective being reached and the EXTRACTION back across the level are unobserved by anything; infiltration-caught and -camera are both route 2. This window is steps 560-567 of a 600-frame run, and it is eight frames rather than two because the return leg is the part of the route with the most movement in it.",
+      "note": "Recorded 2026-09-11 as i0 of the promotion plan, BEFORE any code moves, so a promotion that changed behaviour could not destroy the evidence. Stable 2/2 independent full runs before recording. MUTATION-PROVED through the SIM, not just the camera: walk_speed 2.2 -> 2.19 m/s (0.5%) drifts it. A negative result worth keeping: kArriveRadius 1.2 -> 1.15 does NOT drift it, so this window does not see every sim constant and should not be described as if it did. CORRECTION TO THE PLAN THAT ADDED IT: its 1 claimed the slice had no capture oracle. False -- ragdoll, caught and camera have covered it since 2026-08, and assuming otherwise also produced a DUPLICATE infiltration-caught id here, which check_captures ran happily as two rules. This rule is a fourth WINDOW, not a first oracle. Moved to this repo 2026-09-12 (i1): same code, same digest, new home.",
+      "expect": {
+        "Debug/msvc": "9bc2ad51605e189e980e2fb98901707a"
+      }
     }
   ],
   "excluded": [

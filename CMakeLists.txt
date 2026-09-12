@@ -41,6 +41,7 @@ endif()
 add_subdirectory("${AETHER_DIR}" aether)
 
 add_subdirectory(coin_rush)
+add_subdirectory(infiltration)
 add_subdirectory(lantern)
 add_subdirectory(tideworn)
 # hearthfield is SIM-ONLY at H0 -- no app/, no view/, no assets. It is the one
