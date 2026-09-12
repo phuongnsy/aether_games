@@ -108,6 +108,7 @@
 #include "infiltration/features/ragdoll/ragdoll.hpp"
 #include "infiltration/runtime/player.hpp"
 #include "infiltration/view/draw.hpp"
+#include "infiltration/view/stage.hpp"
 #include "example_base.hpp"
 #include "aether/core/log.hpp"
 
@@ -513,20 +514,7 @@ class Infiltration final : public examples::ExampleGame {
     //     and can be moved in and out relative to this point". Its pivot
     //     tracks the player, which is what makes the movement below
     //     camera-relative.
-    const scene::NodeId camera = scene_.CreateNode(scene_.Root());
-    camera_node_ = camera;
-    auto* view = scene_.AddComponent<scene::CameraComponent>(camera);
-    view->projection = ProjectionMode::kPerspective;
-    view->reference_size = 0.0f;
-    view->near_z = 0.05f;
-    view->far_z = 200.0f;
-    scene_.SetActiveCamera(camera);
-    orbit_ = scene_.AddComponent<scene::OrbitComponent>(camera);
-    orbit_->pivot = Vec3{0.0f, 1.2f, 0.0f};
-    orbit_->distance = 9.0f;
-    orbit_->min_distance = 1.0f;  // see kCameraProbe: the level demands it
-    orbit_->max_distance = 40.0f;
-    orbit_->pitch = 0.42f;
+    orbit_ = stage_.MakeCamera();
     camera_pivot_ = kStart + Vec3{0.0f, 1.2f, 0.0f};  // g5 starts settled
 
     // --- THE GUARDS ARE AUDIBLE (ADR-0191) ----------------------------------
@@ -617,7 +605,7 @@ class Infiltration final : public examples::ExampleGame {
   }
 
   RenderFrame Extract(const app::AppContext& ctx) override {
-    RenderFrame frame = BuildSceneFrame(scene_, ctx);
+    RenderFrame frame = stage_.BuildFrame(ctx);
     DrawLevel(frame, level_);
     DrawCover(frame);
     DrawObjective(frame, leg_);
@@ -659,13 +647,13 @@ class Infiltration final : public examples::ExampleGame {
     // camera — §13.5.2's rule for game-driven bodies read across to a camera:
     // resolve, then let the driver run.
     StepCameraCollision(orbit_, walls_);
-    scene_.Update(dt);
+    stage_.Update(dt);
     StepTheGuards(ctx, dt);
     StepTheBodies(dt);
     StepTheAudio();
     StepTheFlow();
     ++steps_;
-    ProbeCamera(probe_, scene_.Get(camera_node_), orbit_, walls_);
+    ProbeCamera(probe_, stage_.Camera(), orbit_, walls_);
     Assert();
   }
 
@@ -1996,7 +1984,7 @@ class Infiltration final : public examples::ExampleGame {
     flow.Label("retries", [this] { return std::format("{}", retries_); });
   }
 
-  scene::Scene scene_;
+  Stage stage_;
   ui::Context ui_;
   examples::OrbitInput orbit_input_;
   scene::OrbitComponent* orbit_ = nullptr;
@@ -2022,7 +2010,6 @@ class Infiltration final : public examples::ExampleGame {
   F32 exposure_ = 0.0f;
   U32 retries_ = 0;
   Vec3 camera_pivot_{};
-  scene::NodeId camera_node_{};
   CameraProbe probe_;
   resources::ResourceHandle<resources::Texture> white_;
   std::shared_ptr<const resources::Font> font_;
