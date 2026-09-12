@@ -13,6 +13,7 @@
 
 #include "aether/anim/locomotion.hpp"
 #include "aether/anim/pose.hpp"
+#include "aether/anim/ragdoll.hpp"
 #include "aether/anim/retarget.hpp"
 #include "aether/core/math/mat.hpp"
 #include "aether/core/math/transform.hpp"
@@ -65,4 +66,24 @@ inline void PoseFor(PoseBuffers& buf, const resources::Skeleton& clip_rig,
     anim::RetargetPose(buf.clip, map, 1.0f, buf.local);
 }
 
+
+// §16.6.3 in the other direction: what the ANIMATION says each body should
+// be, in the frame the character occupies. Called for a guard that is still
+// conscious — its bodies are driven toward these — and for hit boxes, which
+// want the same transforms for a different reason.
+inline void PoseRagdollTargets(PoseBuffers& buf, const anim::RagdollRig& rig,
+                               const resources::Skeleton& clip_rig,
+                               const resources::Skeleton& agent_rig,
+                               std::span<const anim::LocomotionGait> gaits,
+                               const anim::RetargetMap& map,
+                               const anim::LocomotionState& loco, F32 phase,
+                               const Mat4& to_world,
+                               std::vector<Transform>& targets) {
+    PoseFor(buf, clip_rig, agent_rig, gaits, map, loco, phase);
+    buf.globals.resize(agent_rig.JointCount());
+    anim::ComposeGlobals(agent_rig, buf.local, buf.globals);
+    targets.resize(rig.BoneCount());
+    anim::PoseToRagdollTargets(rig, buf.globals, to_world,
+                               targets);
+}
 }  // namespace infiltration::runtime

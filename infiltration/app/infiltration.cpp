@@ -1191,7 +1191,10 @@ class Infiltration final : public examples::ExampleGame {
     const std::span<const anim::RagdollBone> bones = rag_rig_.Bones();
     for (Usize g = 0; g < kGuards; ++g) {
       rag_[g].bodies.assign(bones.size(), physics::BodyId{});
-      PoseHitBoxTargets(g);
+      PoseRagdollTargets(pose_, rag_rig_, clips_->Skeleton(),
+                       agent_->Skeleton(), gaits_, map_,
+                       guard_.loco[g], guard_.phase[g], LiveToWorld(g),
+                       rag_targets_);
       for (Usize b = 0; b < bones.size(); ++b) {
         const auto id = body_world_.AddBody(
             {.transform = rag_targets_[b],
@@ -1225,15 +1228,6 @@ class Infiltration final : public examples::ExampleGame {
   // the same call the limp branch makes — and the only difference is the frame:
   // the LIVE agent's, because a conscious guard is still walking, rather than
   // the one frozen at the takedown.
-  void PoseHitBoxTargets(Usize g) {
-    PoseFor(pose_, clips_->Skeleton(), agent_->Skeleton(), gaits_, map_,
-            guard_.loco[g], guard_.phase[g]);
-    pose_.globals.resize(agent_->Skeleton().JointCount());
-    anim::ComposeGlobals(agent_->Skeleton(), pose_.local, pose_.globals);
-    rag_targets_.resize(rag_rig_.BoneCount());
-    anim::PoseToRagdollTargets(rag_rig_, pose_.globals, LiveToWorld(g),
-                               rag_targets_);
-  }
 
   // The same placement `LimpToWorld` does, from the agent rather than from the
   // pose frozen at the takedown.
@@ -1373,7 +1367,10 @@ class Infiltration final : public examples::ExampleGame {
       // transforms of their counterparts (game objects or JOINTS) in the game
       // world" — before the step, never after.
       if (!rag_[g].live) {
-        PoseHitBoxTargets(g);
+        PoseRagdollTargets(pose_, rag_rig_, clips_->Skeleton(),
+                           agent_->Skeleton(), gaits_, map_,
+                           guard_.loco[g], guard_.phase[g],
+                           LiveToWorld(g), rag_targets_);
         for (Usize b = 0; b < rag_[g].bodies.size(); ++b) {
           // 13.5.1.2's impulse move, NOT a teleport. The velocity it leaves
           // behind is what a limb inherits when the motion type switches.
@@ -1429,7 +1426,10 @@ class Infiltration final : public examples::ExampleGame {
         if (rag_[g].live || rag_[g].bodies.empty()) {
           continue;
         }
-        PoseHitBoxTargets(g);  // the same pose: nothing advanced it since
+        PoseRagdollTargets(pose_, rag_rig_, clips_->Skeleton(),
+                           agent_->Skeleton(), gaits_, map_,
+                           guard_.loco[g], guard_.phase[g],
+                           LiveToWorld(g), rag_targets_);  // the same pose: nothing advanced it since
         for (Usize b = 0; b < rag_[g].bodies.size(); ++b) {
           const Transform now = body_world_.BodyTransform(rag_[g].bodies[b]);
           hit_box_drift_ = std::max(
