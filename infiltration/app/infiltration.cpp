@@ -104,12 +104,14 @@
 #include "aether/ui/context.hpp"
 #include "aether/ui/screen.hpp"
 #include "infiltration/content/level.hpp"
+#include "infiltration/features/guards/guards.hpp"
 #include "infiltration/runtime/player.hpp"
 #include "example_base.hpp"
 #include "aether/core/log.hpp"
 
 using namespace aether;
 using namespace infiltration::content;
+using namespace infiltration::features::guards;
 using namespace infiltration::runtime;
 
 namespace {
@@ -151,85 +153,6 @@ constexpr Vec4 kMeterHot{0.95f, 0.25f, 0.25f, 1.0f};
 }
 
 // --- the player --------------------------------------------------------------
-// --- the guards' policy ------------------------------------------------------
-// GEA §16.9.5.6: a finite state machine ON THE SCRIPT SIDE. The engine owns no
-// tree and no scorer, and the state-to-posture mapping is here rather than in
-// C++ because a posture table IS policy (ADR-0190/0192).
-constexpr const char* kPolicySource = R"LUA(
-local kPatrol = { { x = -7.0, z = -6.0 }, { x = -7.0, z = 6.0 } }
-
--- Authored cover points. Three are behind the wall from the +z half; the
--- fourth is in the open on purpose, so cover_choose has something to reject.
-local kCover = {
-  { x = -8.0, z = -4.0 },
-  { x = -2.0, z = -3.0 },
-  { x =  2.0, z = -5.0 },
-  { x =  0.0, z =  3.0 },
-}
-
--- TWO THRESHOLDS, NOT ONE. With a single 0.30 the guards flip-flopped
--- alert<->investigate every few steps while confidence hovered at 0.29..0.33 —
--- visible in the transition log as a dozen changes a second, which is the
--- state-level version of the popping GEA 14.4.5.3 warns about for gains.
-local kSpotted = 0.30  -- enter alert
-local kLost = 0.15     -- and do not leave until well below it
-
-function agent_policy(i)
-  local state = bb_get(i, "state") or "patrol"
-  local conf = bb_get(i, "confidence") or 0.0
-  local remembered = bb_get(i, "remembered")
-  local arrived = bb_get(i, "arrived")
-  local leg = bb_get(i, "leg") or 1
-
-  if state == "alert" then
-    -- Hysteresis: stay alert until confidence falls well below the entry
-    -- threshold, then go and look where the player was last.
-    if conf < kLost then
-      if remembered then state = "investigate" else state = "patrol" end
-    end
-  elseif conf > kSpotted then
-    state = "alert" 
-  elseif state == "investigate" then
-    if arrived or conf < 0.05 then state = "patrol" end
-  elseif state == "patrol" then
-    if arrived then
-      leg = 3 - leg
-      bb_set(i, "leg", leg)
-    end
-  end
-
-  local wx, wz = nil, nil
-  if state == "alert" then
-    -- Break the line of sight: the player is the threat, and the authored
-    -- points are the candidates. No table crosses the seam, so they are pushed
-    -- one at a time.
-    cover_reset()
-    cover_threat(bb_get(i, "target_x"), 1.2, bb_get(i, "target_z"))
-    for k = 1, #kCover do
-      cover_candidate(kCover[k].x, 1.2, kCover[k].z)
-    end
-    -- `local` MATTERS: Lua's conventional `_` throwaway is a GLOBAL without
-    -- it, and SealGlobals refuses a new global at run time. The sandbox caught
-    -- this on the first run, which is the seal doing its job.
-    local cx, _cy, cz = cover_choose(bb_get(i, "at_x"), 1.2, bb_get(i, "at_z"))
-    wx, wz = cx, cz
-  elseif state == "investigate" then
-    wx, wz = bb_get(i, "last_x"), bb_get(i, "last_z")
-  end
-  if wx == nil then
-    wx, wz = kPatrol[leg].x, kPatrol[leg].z
-  end
-
-  local posture = 0.0
-  if state == "alert" then posture = 1.0
-  elseif state == "investigate" then posture = 0.45 end
-
-  bb_set(i, "state", state)
-  bb_set(i, "posture", posture)
-  bb_set(i, "want_x", wx)
-  bb_set(i, "want_z", wz)
-end
-)LUA";
 
 // §14.4.5.3's four states as words. `spatial.hpp` exports no such helper and
 // `audio_probe` carries its own; a third copy would be the moment to promote
@@ -248,7 +171,6 @@ end
   return "?";
 }
 
-constexpr Usize kGuards = 2;
 
 // --- the loop's own numbers (g1–g4) ------------------------------------------
 // §17.2.1 declines to specify player mechanics, so none of these is cited.
@@ -634,7 +556,7 @@ class Infiltration final : public examples::ExampleGame {
       for (Usize g = 0; g < kGuards; ++g) {
         voices_[g] = audio_->PlaySpatial(
             step_clip_,
-            audio::SpatialSource{.position = crowd_.AgentPosition(guards_[g]),
+            audio::SpatialSource{.position = crowd_.AgentPosition(guard_.id[g]),
                                  .falloff_min = 1.5f,
                                  .falloff_max = 26.0f,
                                  .gain = 0.6f},
@@ -851,13 +773,13 @@ class Infiltration final : public examples::ExampleGame {
         body_world_.RemoveBody(body);  // and its joints, which go first
       }
       rag_[g] = Limp{};
-      disabled_[g] = false;
-      aware_[g] = ai::Awareness{};
-      guard_loco_[g] = anim::LocomotionState{};
-      guard_phase_[g] = 0.0f;
-      reported_[g].clear();
+      guard_.disabled[g] = false;
+      guard_.aware[g] = ai::Awareness{};
+      guard_.loco[g] = anim::LocomotionState{};
+      guard_.phase[g] = 0.0f;
+      guard_.reported[g].clear();
       boards_.Agent(g)->ClearAll();
-      crowd_.RemoveAgent(guards_[g]);
+      crowd_.RemoveAgent(guard_.id[g]);
     }
     if (auto spawned = SpawnGuards(); !spawned) {
       LogWarn("infiltration: retry could not respawn the guards: {}",
@@ -904,7 +826,7 @@ class Infiltration final : public examples::ExampleGame {
                      kGoalMark);
     Usize down = 0;
     for (Usize g = 0; g < kGuards; ++g) {
-      down += disabled_[g] ? 1 : 0;
+      down += guard_.disabled[g] ? 1 : 0;
     }
     if (down > 0) {
       ui.LabelCentered(middle, bar.y + bar.h + 36.0f,
@@ -933,9 +855,9 @@ class Infiltration final : public examples::ExampleGame {
       if (!id) {
         return std::unexpected(id.error());
       }
-      guards_[g] = *id;
-      targets_[g] = kGuardSpawn[0];
-      (void)crowd_.SetTarget(guards_[g], targets_[g]);
+      guard_.id[g] = *id;
+      guard_.target[g] = kGuardSpawn[0];
+      (void)crowd_.SetTarget(guard_.id[g], guard_.target[g]);
     }
     return {};
   }
@@ -997,9 +919,9 @@ class Infiltration final : public examples::ExampleGame {
     // so a chase closes and the angle gate is satisfied without scripting an
     // approach vector. The takedown then fires from `WantsTakedown`.
     if (auto_leg_ == 0) {
-      if (!disabled_[0]) {
+      if (!guard_.disabled[0]) {
         if (auto_seconds_ < kStalkBudget) {
-          const Vec3 to = crowd_.AgentPosition(guards_[0]) - player_.position;
+          const Vec3 to = crowd_.AgentPosition(guard_.id[0]) - player_.position;
           return LengthSquared(to) < 0.01f ? Vec3{}
                                            : Normalize(to) * player_.tune.walk_speed;
         }
@@ -1013,9 +935,9 @@ class Infiltration final : public examples::ExampleGame {
           auto_hold_ = auto_seconds_ + kLoiterSeconds;
         }
         if (auto_seconds_ < auto_hold_) {
-          const Vec3 at = crowd_.AgentPosition(guards_[0]);
-          const Vec3 forward{std::sin(guard_loco_[0].facing), 0.0f,
-                             std::cos(guard_loco_[0].facing)};
+          const Vec3 at = crowd_.AgentPosition(guard_.id[0]);
+          const Vec3 forward{std::sin(guard_.loco[0].facing), 0.0f,
+                             std::cos(guard_.loco[0].facing)};
           const Vec3 to = at + forward * 1.3f - player_.position;
           return LengthSquared(to) < 0.02f ? Vec3{}
                                            : Normalize(to) * player_.tune.walk_speed;
@@ -1052,12 +974,12 @@ class Infiltration final : public examples::ExampleGame {
   // one is a failed run. The same dot product decides both.
   [[nodiscard]] Vec3 BlownIntent() const {
     for (Usize g = 0; g < kGuards; ++g) {
-      if (disabled_[g]) {
+      if (guard_.disabled[g]) {
         continue;
       }
-      const Vec3 at = crowd_.AgentPosition(guards_[g]);
-      const Vec3 forward{std::sin(guard_loco_[g].facing), 0.0f,
-                         std::cos(guard_loco_[g].facing)};
+      const Vec3 at = crowd_.AgentPosition(guard_.id[g]);
+      const Vec3 forward{std::sin(guard_.loco[g].facing), 0.0f,
+                         std::cos(guard_.loco[g].facing)};
       const Vec3 to = at + forward * 2.2f - player_.position;
       return LengthSquared(to) < 0.04f ? Vec3{}
                                        : Normalize(to) * player_.tune.walk_speed;
@@ -1102,11 +1024,11 @@ class Infiltration final : public examples::ExampleGame {
                                               .layer = kCharacterLayer,
                                               .id = kPlayerCapsuleId});
     for (Usize g = 0; g < kGuards; ++g) {
-      if (disabled_[g]) {
+      if (guard_.disabled[g]) {
         continue;
       }
       capsules_.push_back(
-          nav::CharacterCapsule{.feet = crowd_.AgentPosition(guards_[g]),
+          nav::CharacterCapsule{.feet = crowd_.AgentPosition(guard_.id[g]),
                                 .radius = kGuardRadius,
                                 .height = player_.body.height,
                                 .layer = kCharacterLayer,
@@ -1116,14 +1038,14 @@ class Infiltration final : public examples::ExampleGame {
 
   [[nodiscard]] bool FacingAGuardInReach() const {
     for (Usize g = 0; g < kGuards; ++g) {
-      if (disabled_[g]) {
+      if (guard_.disabled[g]) {
         continue;
       }
-      const Vec3 at = crowd_.AgentPosition(guards_[g]);
+      const Vec3 at = crowd_.AgentPosition(guard_.id[g]);
       const Vec3 to = player_.position - at;
       const F32 range = Length(to);
-      const Vec3 forward{std::sin(guard_loco_[g].facing), 0.0f,
-                         std::cos(guard_loco_[g].facing)};
+      const Vec3 forward{std::sin(guard_.loco[g].facing), 0.0f,
+                         std::cos(guard_.loco[g].facing)};
       if (range > 1e-4f && range <= kTakedownRange &&
           Dot(forward, to / range) > kTakedownBehind) {
         return true;
@@ -1195,13 +1117,13 @@ class Infiltration final : public examples::ExampleGame {
     // front-on attempts by itself, which is how that gate survived a mutation
     // on 2026-09-10) and starts landing takedowns with this number positive.
     takedown_dot_ = Dot(forward, to / range);
-    disabled_[g] = true;
-    (void)crowd_.SetAgentMaxSpeed(guards_[g], 0.01f);
-    (void)crowd_.SetTarget(guards_[g], at);
-    aware_[g] = ai::Awareness{};  // and it perceives nothing, ever again
+    guard_.disabled[g] = true;
+    (void)crowd_.SetAgentMaxSpeed(guard_.id[g], 0.01f);
+    (void)crowd_.SetTarget(guard_.id[g], at);
+    guard_.aware[g] = ai::Awareness{};  // and it perceives nothing, ever again
     boards_.Agent(g)->Set(StringId{"state"}, std::string("down"));
     boards_.Agent(g)->Set(StringId{"posture"}, 0.0);
-    reported_[g] = "down";
+    guard_.reported[g] = "down";
     GoLimp(g);
     LogInfo(
         "infiltration: the reach landed on guard {}'s {} at {:.2f} m — GEA "
@@ -1219,16 +1141,14 @@ class Infiltration final : public examples::ExampleGame {
   void StepTheGuards(const app::AppContext& ctx, F32 dt) {
     const bool takedown = WantsTakedown(ctx);
     for (Usize g = 0; g < kGuards; ++g) {
-      const Vec3 at = crowd_.AgentPosition(guards_[g]);
+      const Vec3 at = crowd_.AgentPosition(guard_.id[g]);
       // A downed guard is skipped WHOLE — no gait, no perception, no policy
       // call — so its pose, its confidence and its blackboard all freeze.
-      if (disabled_[g]) {
+      if (guard_.disabled[g]) {
         continue;
       }
-      const Vec3 v = crowd_.AgentVelocity(guards_[g]);
-      guard_loco_[g] =
-          anim::SolveLocomotion(v, guard_loco_[g].facing, LocoConfig(), dt);
-      guard_phase_[g] += dt * guard_loco_[g].rate;
+      StepGuardGait(guard_, g, crowd_.AgentVelocity(guard_.id[g]),
+                    LocoConfig(), dt);
 
       // PERCEPTION, OF THE PLAYER (ADR-0189). This is what `nav_lab` could not
       // do: it watches a FIXED point, because two mirror-symmetric agents are
@@ -1236,8 +1156,8 @@ class Infiltration final : public examples::ExampleGame {
       // that compromise was standing in for.
       const Vec3 eye = at + Vec3{0.0f, 1.6f, 0.0f};
       const Vec3 chest = player_.position + Vec3{0.0f, 1.2f, 0.0f};
-      const Vec3 forward{std::sin(guard_loco_[g].facing), 0.0f,
-                         std::cos(guard_loco_[g].facing)};
+      const Vec3 forward{std::sin(guard_.loco[g].facing), 0.0f,
+                         std::cos(guard_.loco[g].facing)};
       if (takedown) {
         if (TryTakedown(g, at, forward)) {
           continue;
@@ -1249,22 +1169,21 @@ class Infiltration final : public examples::ExampleGame {
           ++takedown_refused_;
         }
       }
-      const bool seen = ai::CanSee(eye, forward, chest, walls_, cone_);
-      aware_[g] = ai::UpdateAwareness(aware_[g], seen, chest, dt);
+      StepGuardAwareness(guard_, g, eye, forward, chest, walls_, cone_, dt);
 
       ai::Blackboard* board = boards_.Agent(g);
       board->Set(StringId{"at_x"}, static_cast<F64>(at.x));
       board->Set(StringId{"at_z"}, static_cast<F64>(at.z));
       board->Set(StringId{"confidence"},
-                 static_cast<F64>(aware_[g].confidence));
-      board->Set(StringId{"remembered"}, aware_[g].seconds_since_seen >= 0.0f);
+                 static_cast<F64>(guard_.aware[g].confidence));
+      board->Set(StringId{"remembered"}, guard_.aware[g].seconds_since_seen >= 0.0f);
       board->Set(StringId{"last_x"},
-                 static_cast<F64>(aware_[g].last_known_position.x));
+                 static_cast<F64>(guard_.aware[g].last_known_position.x));
       board->Set(StringId{"last_z"},
-                 static_cast<F64>(aware_[g].last_known_position.z));
+                 static_cast<F64>(guard_.aware[g].last_known_position.z));
       board->Set(StringId{"target_x"}, static_cast<F64>(chest.x));
       board->Set(StringId{"target_z"}, static_cast<F64>(chest.z));
-      board->Set(StringId{"arrived"}, Length(at - targets_[g]) < 1.0f);
+      board->Set(StringId{"arrived"}, Length(at - guard_.target[g]) < 1.0f);
 
       const script::Value who{static_cast<F64>(g)};
       if (auto called = policy_->Call("agent_policy", std::span{&who, 1});
@@ -1276,15 +1195,15 @@ class Infiltration final : public examples::ExampleGame {
       const Vec3 want{static_cast<F32>(board->GetNumber(StringId{"want_x"})),
                       0.0f,
                       static_cast<F32>(board->GetNumber(StringId{"want_z"}))};
-      if (Length(want - targets_[g]) > 0.5f) {
-        targets_[g] = want;
-        (void)crowd_.SetTarget(guards_[g], want);
+      if (Length(want - guard_.target[g]) > 0.5f) {
+        guard_.target[g] = want;
+        (void)crowd_.SetTarget(guard_.id[g], want);
       }
       const std::string_view now = board->GetText(StringId{"state"}, "?");
-      if (now != reported_[g]) {
-        reported_[g] = std::string{now};
+      if (now != guard_.reported[g]) {
+        guard_.reported[g] = std::string{now};
         LogInfo("infiltration: guard {} -> {} (confidence {:.2f})", g, now,
-                aware_[g].confidence);
+                guard_.aware[g].confidence);
       }
     }
   }
@@ -1356,7 +1275,7 @@ class Infiltration final : public examples::ExampleGame {
   // the LIVE agent's, because a conscious guard is still walking, rather than
   // the one frozen at the takedown.
   void PoseHitBoxTargets(Usize g) {
-    PoseFor(guard_loco_[g], guard_phase_[g]);
+    PoseFor(guard_.loco[g], guard_.phase[g]);
     globals_.resize(agent_->Skeleton().JointCount());
     anim::ComposeGlobals(agent_->Skeleton(), local_, globals_);
     rag_targets_.resize(rag_rig_.BoneCount());
@@ -1367,9 +1286,9 @@ class Infiltration final : public examples::ExampleGame {
   // The same placement `LimpToWorld` does, from the agent rather than from the
   // pose frozen at the takedown.
   [[nodiscard]] Mat4 LiveToWorld(Usize g) const {
-    return MakeTranslation(crowd_.AgentPosition(guards_[g])) *
+    return MakeTranslation(crowd_.AgentPosition(guard_.id[g])) *
            QuatToMat4(QuatFromAxisAngle(Vec3{0.0f, 1.0f, 0.0f},
-                                        guard_loco_[g].facing));
+                                        guard_.loco[g].facing));
   }
 
   void GoLimp(Usize g) {
@@ -1380,13 +1299,13 @@ class Infiltration final : public examples::ExampleGame {
     // moving but the simulation carries the body wherever it falls, and the
     // difference has to land in the joints' local poses rather than in a
     // placement that keeps chasing an agent.
-    rag_[g].at = crowd_.AgentPosition(guards_[g]);
-    rag_[g].facing = guard_loco_[g].facing;
+    rag_[g].at = crowd_.AgentPosition(guard_.id[g]);
+    rag_[g].facing = guard_.loco[g].facing;
     const Mat4 to_world = LimpToWorld(g);
 
     // The animated pose, composed — §16.6.3's "the animation system produces an
     // intermediate, local-space skeletal pose".
-    PoseFor(guard_loco_[g], guard_phase_[g]);
+    PoseFor(guard_.loco[g], guard_.phase[g]);
     globals_.resize(agent_->Skeleton().JointCount());
     anim::ComposeGlobals(agent_->Skeleton(), local_, globals_);
 
@@ -1517,7 +1436,7 @@ class Infiltration final : public examples::ExampleGame {
       // 1. the animated pose the motors chase. It is FROZEN — a downed guard's
       // gait stopped advancing at the takedown — so this is the pose it died
       // in, which is exactly what §13.4.8.8 wants a rest angle to be.
-      PoseFor(guard_loco_[g], guard_phase_[g]);
+      PoseFor(guard_.loco[g], guard_.phase[g]);
       anim::ComposeGlobals(agent_->Skeleton(), local_, globals_);
       anim::PoseToRagdollTargets(rag_rig_, globals_, LimpToWorld(g),
                                  rag_targets_);
@@ -1609,11 +1528,11 @@ class Infiltration final : public examples::ExampleGame {
       if (!voices_[g].Valid()) {
         continue;
       }
-      if (disabled_[g]) {
+      if (guard_.disabled[g]) {
         audio_->SetSpatialGain(voices_[g], 0.0f);  // a downed guard is silent
         continue;
       }
-      const Vec3 at = crowd_.AgentPosition(guards_[g]) + Vec3{0.0f, 1.2f, 0.0f};
+      const Vec3 at = crowd_.AgentPosition(guard_.id[g]) + Vec3{0.0f, 1.2f, 0.0f};
       audio_->SetSpatialPosition(voices_[g], at);
       heard_[g] =
           audio::Propagate(listener, at, walls_, region(listener.position.z),
@@ -1630,8 +1549,8 @@ class Infiltration final : public examples::ExampleGame {
   void StepTheFlow() {
     exposure_ = 0.0f;
     for (Usize g = 0; g < kGuards; ++g) {
-      if (!disabled_[g]) {
-        exposure_ = std::max(exposure_, aware_[g].confidence);
+      if (!guard_.disabled[g]) {
+        exposure_ = std::max(exposure_, guard_.aware[g].confidence);
       }
     }
     if (outcome_ != Outcome::kRunning) {
@@ -1640,16 +1559,16 @@ class Infiltration final : public examples::ExampleGame {
     // SEEN IS NOT CAUGHT — see kCatchRange. A guard has to be certain AND on
     // top of you, which is what leaves the meter something to mean.
     for (Usize g = 0; g < kGuards; ++g) {
-      if (disabled_[g] || !aware_[g].visible_now ||
-          aware_[g].confidence < kCatchConfidence) {
+      if (guard_.disabled[g] || !guard_.aware[g].visible_now ||
+          guard_.aware[g].confidence < kCatchConfidence) {
         continue;
       }
-      if (Length(crowd_.AgentPosition(guards_[g]) - player_.position) < kCatchRange) {
+      if (Length(crowd_.AgentPosition(guard_.id[g]) - player_.position) < kCatchRange) {
         outcome_ = Outcome::kCaught;
         LogInfo(
             "infiltration: SPOTTED by guard {} at {:.1f} m after {} steps — "
             "the run is over",
-            g, Length(crowd_.AgentPosition(guards_[g]) - player_.position), steps_);
+            g, Length(crowd_.AgentPosition(guard_.id[g]) - player_.position), steps_);
         return;
       }
     }
@@ -1697,7 +1616,7 @@ class Infiltration final : public examples::ExampleGame {
                 .c_str());
       }
     }
-    if (!asserted_seen_ && (aware_[0].visible_now || aware_[1].visible_now)) {
+    if (!asserted_seen_ && (guard_.aware[0].visible_now || guard_.aware[1].visible_now)) {
       asserted_seen_ = true;
       say("a guard ACQUIRED the player");
     }
@@ -1729,17 +1648,17 @@ class Infiltration final : public examples::ExampleGame {
         }
       }
     }
-    // ANY guard, and not a DOWNED one. This read `aware_[0]` until g4 arrived
+    // ANY guard, and not a DOWNED one. This read `guard_.aware[0]` until g4 arrived
     // and made it unreachable on route 1: a disabled guard's awareness is
     // zeroed forever, so the assertion sat waiting on a memory that could no
     // longer exist. The same class of mistake as the three ADR-0193 records —
     // an assertion that cannot fire for a reason unrelated to its subject.
     for (Usize g = 0; g < kGuards && !asserted_lost_ && asserted_seen_; ++g) {
-      if (!disabled_[g] && !aware_[g].visible_now &&
-          aware_[g].seconds_since_seen > 0.5f) {
+      if (!guard_.disabled[g] && !guard_.aware[g].visible_now &&
+          guard_.aware[g].seconds_since_seen > 0.5f) {
         asserted_lost_ = true;
         say(std::format("guard {} LOST the player and remembers ({:.1f}s ago)",
-                        g, aware_[g].seconds_since_seen)
+                        g, guard_.aware[g].seconds_since_seen)
                 .c_str());
       }
     }
@@ -1838,7 +1757,7 @@ class Infiltration final : public examples::ExampleGame {
     }
     if (!asserted_takedown_) {
       for (Usize g = 0; g < kGuards; ++g) {
-        if (disabled_[g]) {
+        if (guard_.disabled[g]) {
           asserted_takedown_ = true;
           say(std::format("guard {} is DISABLED from behind (g4)", g).c_str());
         }
@@ -1917,10 +1836,10 @@ class Infiltration final : public examples::ExampleGame {
     // that tunnelled through and came back would report. A LIVE guard only:
     // a downed one is limp on the floor and is deliberately not a blocker.
     for (Usize g = 0; g < kGuards; ++g) {
-      if (disabled_[g]) {
+      if (guard_.disabled[g]) {
         continue;
       }
-      const Vec3 to = crowd_.AgentPosition(guards_[g]) - player_.position;
+      const Vec3 to = crowd_.AgentPosition(guard_.id[g]) - player_.position;
       closest_guard_ = std::min(closest_guard_, Length(Vec3{to.x, 0.0f, to.z}));
     }
     if (!asserted_apart_ && steps_ > 400) {
@@ -2007,15 +1926,15 @@ class Infiltration final : public examples::ExampleGame {
     if (!asserted_blind_) {
       bool watching = false;
       for (Usize g = 0; g < kGuards; ++g) {
-        const Vec3 at = crowd_.AgentPosition(guards_[g]);
+        const Vec3 at = crowd_.AgentPosition(guard_.id[g]);
         const Vec3 to = player_.position - at;
         const F32 range = Length(to);
-        const Vec3 forward{std::sin(guard_loco_[g].facing), 0.0f,
-                           std::cos(guard_loco_[g].facing)};
-        if (disabled_[g] && range > 1e-4f && range < 4.0f &&
+        const Vec3 forward{std::sin(guard_.loco[g].facing), 0.0f,
+                           std::cos(guard_.loco[g].facing)};
+        if (guard_.disabled[g] && range > 1e-4f && range < 4.0f &&
             Dot(forward, to / range) > 0.3f) {
           watching = true;
-          blind_steps_ = aware_[g].confidence == 0.0f ? blind_steps_ + 1 : 0;
+          blind_steps_ = guard_.aware[g].confidence == 0.0f ? blind_steps_ + 1 : 0;
           if (blind_steps_ >= 60) {
             asserted_blind_ = true;
             say("a DOWNED guard held confidence at 0.00 for a second with the "
@@ -2164,7 +2083,7 @@ class Infiltration final : public examples::ExampleGame {
       // locomotion state stopped advancing, so `PoseFor` reproduces its last
       // pose exactly. Which is the point: it stands up straight, in mid-stride,
       // and that is what a ragdoll would fix.
-      PoseFor(guard_loco_[g], guard_phase_[g]);
+      PoseFor(guard_.loco[g], guard_.phase[g]);
       // §12.10.2.5's MASKED gesture layer, at the weight the POLICY chose.
       const F32 posture = static_cast<F32>(std::clamp(
           boards_.Agent(g)->GetNumber(StringId{"posture"}, 0.0), 0.0, 1.0));
@@ -2180,10 +2099,10 @@ class Infiltration final : public examples::ExampleGame {
         DrawSkeleton(frame, rag_[g].at, rag_[g].facing, kDownBone);
         continue;
       }
-      const Vec3 at = crowd_.AgentPosition(guards_[g]);
-      DrawSkeleton(frame, at, guard_loco_[g].facing,
-                   disabled_[g] ? kDownBone : kGuardBone);
-      if (disabled_[g]) {
+      const Vec3 at = crowd_.AgentPosition(guard_.id[g]);
+      DrawSkeleton(frame, at, guard_.loco[g].facing,
+                   guard_.disabled[g] ? kDownBone : kGuardBone);
+      if (guard_.disabled[g]) {
         continue;  // no cone, no confidence bar, no memory cross: it has none
       }
 
@@ -2195,7 +2114,7 @@ class Infiltration final : public examples::ExampleGame {
       for (int k = 0; k <= kArc; ++k) {
         const F32 t = static_cast<F32>(k) / static_cast<F32>(kArc);
         const F32 a =
-            guard_loco_[g].facing + (t * 2.0f - 1.0f) * cone_.half_angle;
+            guard_.loco[g].facing + (t * 2.0f - 1.0f) * cone_.half_angle;
         const Vec3 rim =
             eye + Vec3{std::sin(a), 0.0f, std::cos(a)} * cone_.range;
         if (k == 0 || k == kArc) {
@@ -2206,7 +2125,7 @@ class Infiltration final : public examples::ExampleGame {
         }
         previous = rim;
       }
-      const ai::Awareness& aw = aware_[g];
+      const ai::Awareness& aw = guard_.aware[g];
       if (aw.confidence > 0.0f) {
         const Vec3 base = at + Vec3{0.0f, 2.0f, 0.0f};
         frame.debug.AddLine(base, base + Vec3{0.0f, aw.confidence, 0.0f},
@@ -2289,7 +2208,7 @@ class Infiltration final : public examples::ExampleGame {
         return std::format(
             "{} conf {:.2f} posture {:.2f}",
             boards_.Agent(g)->GetText(StringId{"state"}, "?"),
-            aware_[g].confidence,
+            guard_.aware[g].confidence,
             boards_.Agent(g)->GetNumber(StringId{"posture"}, 0.0));
       });
     }
@@ -2346,13 +2265,7 @@ class Infiltration final : public examples::ExampleGame {
   std::shared_ptr<const resources::Font> font_;
 
   // the guards
-  std::array<nav::AgentId, kGuards> guards_{};
-  std::array<Vec3, kGuards> targets_{};
-  std::array<anim::LocomotionState, kGuards> guard_loco_{};
-  std::array<F32, kGuards> guard_phase_{};
-  std::array<ai::Awareness, kGuards> aware_{};
-  std::array<std::string, kGuards> reported_{};
-  std::array<bool, kGuards> disabled_{};
+  GuardState guard_;
 
   // the ragdoll (r4-r6)
   physics::World body_world_;
