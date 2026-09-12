@@ -266,4 +266,17 @@ class WallQuery final : public GeometryQuery3 {
 };
 
 
+
+// Where a run is going, and where it comes back to. The extraction IS the
+// start: a slice that ends where it began is one route to author, not two.
+constexpr Vec3 kObjective{-4.0f, 0.0f, 5.0f};  // deep in the guards' half
+constexpr Vec3 kExtraction{-7.0f, 0.0f, -8.0f};
+
+// Authored cover, three of it behind the wall from the +z half and the fourth
+// in the open ON PURPOSE, so the guards' chooser has something to reject.
+// The Lua policy carries its own copy of these — a duplication this layer
+// makes visible rather than creates.
+constexpr std::array<Vec3, 4> kCoverPoints{
+    Vec3{-8.0f, 0.0f, -4.0f}, Vec3{-2.0f, 0.0f, -3.0f},
+    Vec3{2.0f, 0.0f, -5.0f}, Vec3{0.0f, 0.0f, 3.0f}};
 }  // namespace infiltration::content

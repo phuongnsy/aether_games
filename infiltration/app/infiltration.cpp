@@ -106,6 +106,7 @@
 #include "infiltration/content/level.hpp"
 #include "infiltration/features/guards/guards.hpp"
 #include "infiltration/runtime/player.hpp"
+#include "infiltration/view/draw.hpp"
 #include "example_base.hpp"
 #include "aether/core/log.hpp"
 
@@ -113,6 +114,7 @@ using namespace aether;
 using namespace infiltration::content;
 using namespace infiltration::features::guards;
 using namespace infiltration::runtime;
+using namespace infiltration::view;
 
 namespace {
 
@@ -122,16 +124,12 @@ constexpr const char* kAgentModel = "models/human_0.glb";
 // the sandbox ships; a real game would have footsteps gated on the gait.
 constexpr const char* kStepClip = "audio/ambient.wav";
 
-constexpr Vec4 kFloorLine{0.22f, 0.26f, 0.30f, 1.0f};
-constexpr Vec4 kWallLine{0.55f, 0.45f, 0.35f, 1.0f};
 constexpr Vec4 kPlayerBone{0.35f, 0.80f, 1.00f, 1.0f};
 constexpr Vec4 kGuardBone{0.95f, 0.55f, 0.35f, 1.0f};
 constexpr Vec4 kCone{0.45f, 0.85f, 0.55f, 1.0f};
 constexpr Vec4 kSure{0.35f, 1.00f, 0.45f, 1.0f};
 constexpr Vec4 kMemory{0.95f, 0.65f, 0.25f, 1.0f};
-constexpr Vec4 kCoverMark{0.55f, 0.60f, 0.95f, 1.0f};
 constexpr Vec4 kDownBone{0.42f, 0.42f, 0.46f, 1.0f};
-constexpr Vec4 kGoalMark{0.95f, 0.90f, 0.40f, 1.0f};
 
 // --- the HUD's palette (g1/g2) ----------------------------------------------
 constexpr Vec4 kHudBack{0.06f, 0.07f, 0.09f, 0.85f};
@@ -180,8 +178,6 @@ constexpr Vec4 kMeterHot{0.95f, 0.25f, 0.25f, 1.0f};
 // merely wrong.
 
 
-constexpr Vec3 kObjective{-4.0f, 0.0f, 5.0f};  // deep in the guards' half
-constexpr Vec3 kExtraction = kStart;           // ...and back out the way in
 constexpr F32 kArriveRadius = 1.2f;
 
 // Both guards' spawns, named because a RETRY has to put them back (§16.10).
@@ -218,8 +214,6 @@ constexpr F32 kCameraStiffness = 6.0f;
 //
 // `probe_passes` is the default: the off-axis case was measured at ZERO steps
 // here, so buying resolution for it would be paying for nothing.
-constexpr scene::CameraCollisionParams kCameraProbe{.radius = 0.35f,
-                                                    .min_distance = 1.0f};
 
 // --- the ragdoll (r4/r5) -----------------------------------------------------
 // §13.5.3.8's transition, as a number: full motor authority at the instant of
@@ -629,9 +623,9 @@ class Infiltration final : public examples::ExampleGame {
 
   RenderFrame Extract(const app::AppContext& ctx) override {
     RenderFrame frame = BuildSceneFrame(scene_, ctx);
-    DrawLevel(frame);
+    DrawLevel(frame, level_);
     DrawCover(frame);
-    DrawObjective(frame);
+    DrawObjective(frame, leg_);
     DrawPlayer(frame);
     DrawGuards(frame);
     return frame;
@@ -665,14 +659,14 @@ class Infiltration final : public examples::ExampleGame {
     // BEFORE `scene_.Update`, which is where `OrbitComponent` places the
     // camera — §13.5.2's rule for game-driven bodies read across to a camera:
     // resolve, then let the driver run.
-    StepTheCamera();
+    StepCameraCollision(orbit_, walls_);
     scene_.Update(dt);
     StepTheGuards(ctx, dt);
     StepTheBodies(dt);
     StepTheAudio();
     StepTheFlow();
     ++steps_;
-    ProbeTheCamera();
+    ProbeCamera(probe_, scene_.Get(camera_node_), orbit_, walls_);
     Assert();
   }
 
@@ -696,53 +690,11 @@ class Infiltration final : public examples::ExampleGame {
   // smooth. The direction comes from the component rather than being recomputed
   // here — resolving along a line the camera is not on would clear one wall and
   // ignore another.
-  void StepTheCamera() {
-    if (orbit_ == nullptr) {
-      return;
-    }
-    // One step stale, the same lag `OrbitComponent` documents for a `target`:
-    // this runs before `scene_.Update`, so the angles are last step's. At 6 rad
-    // of stiffness that is under a degree.
-    orbit_->distance_limit = scene::ResolveCameraDistance(
-        orbit_->pivot, orbit_->CurrentDirection(), orbit_->distance, walls_,
-        ~0U, kCameraProbe);
-  }
 
   // The assertion v1's measurement turned into a number, run every step. It is
   // NOT "the camera is not inside geometry" — that was already true and
   // therefore not a gate — but "the camera is not on the far side of geometry
   // from the player", which was false 36% of one route.
-  void ProbeTheCamera() {
-    const scene::Node* node = scene_.Get(camera_node_);
-    if (node == nullptr || orbit_ == nullptr) {
-      return;
-    }
-    const Vec3 at = node->local.position;
-    ++probe_steps_;
-    if (walls_.OverlapsSphere(Sphere{.center = at, .radius = 0.01f}, ~0U)) {
-      ++probe_inside_;
-    }
-    const Vec3 pivot = orbit_->pivot;
-    const Vec3 to = at - pivot;
-    const F32 d = Length(to);
-    if (d > 1e-4f) {
-      const std::optional<GeometryHit3> hit =
-          walls_.Raycast(Ray3{.origin = pivot, .direction = to / d}, ~0U);
-      // THE TOLERANCE IS THE PROBE RADIUS, not zero. The resolver stops the
-      // camera one radius short of the surface, and a surface exactly at the
-      // camera would otherwise read as an overshoot of 0.
-      if (hit && hit->t < d - kCameraProbe.radius * 0.5f) {
-        ++probe_occluded_;
-        probe_worst_ = std::max(probe_worst_, d - hit->t);
-      }
-    }
-    // And the camera must spend some of the run at the distance it ASKED for,
-    // or a camera welded at `min_distance` would report zero occlusions while
-    // staring at the player's shoulder for ten seconds.
-    if (orbit_->CurrentDistance() > orbit_->distance - 0.05f) {
-      ++probe_free_;
-    }
-  }
 
   // §16.10: "Often, failure sends the player back to the beginning of the
   // current state, so he or she can try again." One state, one retry — not a
@@ -838,9 +790,6 @@ class Infiltration final : public examples::ExampleGame {
  private:
   // The cover points the policy pushes — drawn, so "why did it run there" is
   // answerable by looking.
-  static constexpr std::array<Vec3, 4> kCoverPoints{
-      Vec3{-8.0f, 0.0f, -4.0f}, Vec3{-2.0f, 0.0f, -3.0f},
-      Vec3{2.0f, 0.0f, -5.0f}, Vec3{0.0f, 0.0f, 3.0f}};
 
   // Both spawns in one place, because a RETRY needs them as much as Load does.
   // Detour has no teleport, so a reset removes the agents and adds them back —
@@ -1868,23 +1817,23 @@ class Infiltration final : public examples::ExampleGame {
     // also what a camera welded at `min_distance` reports, staring at the
     // player's shoulder for the whole run — so the camera must also spend most
     // of the run at the distance it actually asked for.
-    if (!asserted_camera_ && probe_steps_ > 400) {
+    if (!asserted_camera_ && probe_.steps > 400) {
       asserted_camera_ = true;
       const F32 free_share =
-          static_cast<F32>(probe_free_) / static_cast<F32>(probe_steps_);
-      if (probe_occluded_ == 0 && free_share > 0.5f) {
+          static_cast<F32>(probe_.free) / static_cast<F32>(probe_.steps);
+      if (probe_.occluded == 0 && free_share > 0.5f) {
         say(std::format(
                 "the CAMERA never sat behind the level — 0 of {} steps "
                 "occluded, {:.0f}% of them at the distance it asked for (GEA "
                 "13.5.3.7, and 17.2.2's third follow-camera part)",
-                probe_steps_, free_share * 100.0f)
+                probe_.steps, free_share * 100.0f)
                 .c_str());
       } else {
         LogWarn(
             "infiltration: the CAMERA sat behind the level for {} of {} steps, "
             "worst overshoot {:.2f} m, and was at its desired distance {:.0f}% "
             "of the time",
-            probe_occluded_, probe_steps_, probe_worst_, free_share * 100.0f);
+            probe_.occluded, probe_.steps, probe_.worst, free_share * 100.0f);
       }
     }
     // h4 — THE BODY GOES LIMP AT WALKING SPEED, which is the whole payoff of
@@ -2047,31 +1996,13 @@ class Infiltration final : public examples::ExampleGame {
     anim::RetargetPose(clip_pose_, map_, 1.0f, local_);
   }
 
-  void DrawSkeleton(RenderFrame& frame, Vec3 at, F32 facing, Vec4 colour) {
-    const resources::Skeleton& rig = agent_->Skeleton();
-    globals_.resize(rig.JointCount());
-    anim::ComposeGlobals(rig, local_, globals_);
-    const Mat4 place = MakeTranslation(at) *
-                       QuatToMat4(QuatFromAxisAngle(Vec3{0, 1, 0}, facing));
-    const std::span<const resources::Joint> joints = rig.Joints();
-    for (Usize j = 0; j < joints.size() && j < globals_.size(); ++j) {
-      const Vec3 here = TransformPoint(place * globals_[j], Vec3{});
-      const Vec3 from =
-          joints[j].parent < 0
-              ? here + Vec3{0, -0.12f, 0}
-              : TransformPoint(
-                    place * globals_[static_cast<Usize>(joints[j].parent)],
-                    Vec3{});
-      frame.debug.AddLine(from, here, colour);
-    }
-  }
 
   void DrawPlayer(RenderFrame& frame) {
     if (gaits_.empty()) {
       return;
     }
     PoseFor(player_.loco, player_.phase);
-    DrawSkeleton(frame, player_.position, player_.loco.facing, kPlayerBone);
+    DrawSkeleton(frame, agent_->Skeleton(), local_, globals_, player_.position, player_.loco.facing, kPlayerBone);
   }
 
   void DrawGuards(RenderFrame& frame) {
@@ -2096,11 +2027,11 @@ class Infiltration final : public examples::ExampleGame {
       // pose, so a fixed placement is correct and a chasing one would not be.
       if (rag_[g].live) {
         PoseFromLimp(g);
-        DrawSkeleton(frame, rag_[g].at, rag_[g].facing, kDownBone);
+        DrawSkeleton(frame, agent_->Skeleton(), local_, globals_, rag_[g].at, rag_[g].facing, kDownBone);
         continue;
       }
       const Vec3 at = crowd_.AgentPosition(guard_.id[g]);
-      DrawSkeleton(frame, at, guard_.loco[g].facing,
+      DrawSkeleton(frame, agent_->Skeleton(), local_, globals_, at, guard_.loco[g].facing,
                    guard_.disabled[g] ? kDownBone : kGuardBone);
       if (guard_.disabled[g]) {
         continue;  // no cone, no confidence bar, no memory cross: it has none
@@ -2141,41 +2072,10 @@ class Infiltration final : public examples::ExampleGame {
     }
   }
 
-  void DrawLevel(RenderFrame& frame) const {
-    for (Usize i = 0; i + 2 < level_.indices.size(); i += 3) {
-      const Vec3 a = level_.vertices[level_.indices[i]];
-      const Vec3 b = level_.vertices[level_.indices[i + 1]];
-      const Vec3 c = level_.vertices[level_.indices[i + 2]];
-      const Vec4 colour =
-          (a.y > 0.01f || b.y > 0.01f || c.y > 0.01f) ? kWallLine : kFloorLine;
-      frame.debug.AddLine(a, b, colour);
-      frame.debug.AddLine(b, c, colour);
-      frame.debug.AddLine(c, a, colour);
-    }
-  }
 
   // The objective, in the WORLD as well as on the HUD — §17.2.3's test again:
   // a goal a player cannot see is a goal they are guessing at.
-  void DrawObjective(RenderFrame& frame) const {
-    const Vec3 goal = leg_ == 1 ? kObjective : kExtraction;
-    constexpr F32 kTall = 1.8f;
-    for (const F32 a : {0.0f, 1.5708f}) {
-      const Vec3 arm{std::cos(a) * 0.5f, 0.0f, std::sin(a) * 0.5f};
-      frame.debug.AddLine(goal - arm, goal + Vec3{0.0f, kTall, 0.0f},
-                          kGoalMark);
-      frame.debug.AddLine(goal + arm, goal + Vec3{0.0f, kTall, 0.0f},
-                          kGoalMark);
-      frame.debug.AddLine(goal - arm, goal + arm, kGoalMark);
-    }
-  }
 
-  void DrawCover(RenderFrame& frame) const {
-    for (const Vec3& c : kCoverPoints) {
-      frame.debug.AddLine(c, c + Vec3{0.0f, 0.6f, 0.0f}, kCoverMark);
-      frame.debug.AddLine(c - Vec3{0.3f, 0, 0}, c + Vec3{0.3f, 0, 0},
-                          kCoverMark);
-    }
-  }
 
   void BuildPanel() {
     auto& player = inspector_.AddSection("Player (GEA 17.2.1)");
@@ -2256,11 +2156,7 @@ class Infiltration final : public examples::ExampleGame {
   U32 retries_ = 0;
   Vec3 camera_pivot_{};
   scene::NodeId camera_node_{};
-  U64 probe_steps_ = 0;
-  U64 probe_occluded_ = 0;
-  U64 probe_inside_ = 0;
-  F32 probe_worst_ = 0.0f;
-  U64 probe_free_ = 0;
+  CameraProbe probe_;
   resources::ResourceHandle<resources::Texture> white_;
   std::shared_ptr<const resources::Font> font_;
 

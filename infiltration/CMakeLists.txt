@@ -15,6 +15,7 @@ set(INFILTRATION_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 add_subdirectory(content)
 add_subdirectory(features/guards)
 add_subdirectory(runtime)
+add_subdirectory(view)
 
 add_executable(infiltration app/infiltration.cpp)
 set_target_properties(infiltration PROPERTIES RUNTIME_OUTPUT_DIRECTORY
@@ -24,7 +25,7 @@ set_target_properties(infiltration PROPERTIES RUNTIME_OUTPUT_DIRECTORY
 target_link_libraries(
   infiltration PRIVATE aether_warnings aether::app aether::inspector
                        infiltration::content infiltration::runtime
-                       infiltration::feat_guards)
+                       infiltration::feat_guards infiltration::view)
 target_include_directories(infiltration PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/app")
 target_compile_definitions(
   infiltration
