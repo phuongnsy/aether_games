@@ -31,6 +31,10 @@
 #include "infiltration/content/level.hpp"
 #include "aether/anim/ragdoll.hpp"
 #include "aether/physics/world.hpp"
+#include "aether/ai/blackboard.hpp"
+#include "aether/ai/perception.hpp"
+#include "aether/nav/crowd.hpp"
+#include "infiltration/features/guards/guards.hpp"
 #include "infiltration/features/ragdoll/ragdoll.hpp"
 #include "infiltration/runtime/player.hpp"
 #include "infiltration/runtime/pose.hpp"
@@ -42,6 +46,7 @@ using namespace aether;  // NOLINT(google-build-using-namespace)
 // The space this draws, by the names content gives it.
 using namespace content;   // NOLINT(google-build-using-namespace)
 using namespace runtime;  // NOLINT(google-build-using-namespace)
+using namespace features::guards;  // NOLINT(google-build-using-namespace)
 
 // The colours the slice draws with, MOVED from the app file rather than
 // written afresh — a first version of this header invented four plausible
@@ -219,5 +224,101 @@ inline void PoseFromLimp(PoseBuffers& buf, std::vector<Transform>& bodies,
     buf.globals.resize(agent_rig.JointCount());
     anim::ApplyRagdollToPose(agent_rig, rig, bodies,
                              *from_world, buf.globals, buf.local);
+}
+
+// The guards: posed, masked by the posture their policy chose, and annotated
+// with what they can see and what they remember. §17.2.3's test is whether a
+// player can perceive the character's motivation, which is what the cone, the
+// confidence bar and the memory cross are for.
+//
+// A downed guard is drawn from its BODIES when it has gone limp, and from the
+// frozen pose when it has not — and gets no cone, no bar and no cross,
+// because it has none of those any more.
+constexpr Vec4 kGuardBone{0.95f, 0.55f, 0.35f, 1.0f};
+constexpr Vec4 kCone{0.45f, 0.85f, 0.55f, 1.0f};
+constexpr Vec4 kSure{0.35f, 1.00f, 0.45f, 1.0f};
+constexpr Vec4 kMemory{0.95f, 0.65f, 0.25f, 1.0f};
+constexpr Vec4 kDownBone{0.42f, 0.42f, 0.46f, 1.0f};
+
+inline void DrawGuards(RenderFrame& frame, PoseBuffers& buf,
+                       std::vector<Transform>& bodies,
+                       const resources::Skeleton& clip_rig,
+                       const resources::Skeleton& agent_rig,
+                       std::span<const anim::LocomotionGait> gaits,
+                       const anim::RetargetMap& map,
+                       const anim::RagdollRig& rig,
+                       const physics::World& world,
+                       const features::guards::GuardState& guard,
+                       std::span<const features::ragdoll::Limp> rag,
+                       const ai::AgentBoards& boards, const nav::Crowd& crowd,
+                       const ai::VisionCone& cone,
+                       std::span<const Transform> alert_pose,
+                       std::span<const F32> alert_mask) {
+    if (gaits.empty()) {
+      return;
+    }
+    for (Usize g = 0; g < kGuards; ++g) {
+      // A DOWNED GUARD IS DRAWN FROM THE SAME FROZEN STATE — the phase and the
+      // locomotion state stopped advancing, so `PoseFor` reproduces its last
+      // pose exactly. Which is the point: it stands up straight, in mid-stride,
+      // and that is what a ragdoll would fix.
+      PoseFor(buf, clip_rig, agent_rig, gaits, map,
+              guard.loco[g], guard.phase[g]);
+      // §12.10.2.5's MASKED gesture layer, at the weight the POLICY chose.
+      const F32 posture = static_cast<F32>(std::clamp(
+          boards.Agent(g)->GetNumber(StringId{"posture"}, 0.0), 0.0, 1.0));
+      if (posture > 0.0f && !alert_pose.empty()) {
+        anim::AddPose(buf.local, alert_pose, posture, buf.local, alert_mask);
+      }
+      // A LIMP GUARD IS POSED FROM ITS BODIES (§16.6.3's
+      // ApplyRagDollsToSkeletons), and drawn in the frame frozen at the
+      // takedown — the simulation's displacement lands in the pelvis's local
+      // pose, so a fixed placement is correct and a chasing one would not be.
+      if (rag[g].live) {
+        PoseFromLimp(buf, bodies, agent_rig, rig,
+                     world, rag[g]);
+        DrawSkeleton(frame, agent_rig, buf.local, buf.globals, rag[g].at, rag[g].facing, kDownBone);
+        continue;
+      }
+      const Vec3 at = crowd.AgentPosition(guard.id[g]);
+      DrawSkeleton(frame, agent_rig, buf.local, buf.globals, at, guard.loco[g].facing,
+                   guard.disabled[g] ? kDownBone : kGuardBone);
+      if (guard.disabled[g]) {
+        continue;  // no cone, no confidence bar, no memory cross: it has none
+      }
+
+      // The cone, the confidence, and the remembered position — §17.2.3's own
+      // test is whether a player can perceive the character's motivation.
+      const Vec3 eye = at + Vec3{0.0f, 1.6f, 0.0f};
+      constexpr int kArc = 9;
+      Vec3 previous{};
+      for (int k = 0; k <= kArc; ++k) {
+        const F32 t = static_cast<F32>(k) / static_cast<F32>(kArc);
+        const F32 a =
+            guard.loco[g].facing + (t * 2.0f - 1.0f) * cone.half_angle;
+        const Vec3 rim =
+            eye + Vec3{std::sin(a), 0.0f, std::cos(a)} * cone.range;
+        if (k == 0 || k == kArc) {
+          frame.debug.AddLine(eye, rim, kCone);
+        }
+        if (k > 0) {
+          frame.debug.AddLine(previous, rim, kCone);
+        }
+        previous = rim;
+      }
+      const ai::Awareness& aw = guard.aware[g];
+      if (aw.confidence > 0.0f) {
+        const Vec3 base = at + Vec3{0.0f, 2.0f, 0.0f};
+        frame.debug.AddLine(base, base + Vec3{0.0f, aw.confidence, 0.0f},
+                            aw.visible_now ? kSure : kMemory);
+      }
+      if (!aw.visible_now && aw.seconds_since_seen >= 0.0f) {
+        const Vec3 m = aw.last_known_position;
+        frame.debug.AddLine(m - Vec3{0.4f, 0, 0}, m + Vec3{0.4f, 0, 0},
+                            kMemory);
+        frame.debug.AddLine(m - Vec3{0, 0, 0.4f}, m + Vec3{0, 0, 0.4f},
+                            kMemory);
+      }
+    }
 }
 }  // namespace infiltration::view

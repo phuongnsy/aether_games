@@ -126,11 +126,6 @@ constexpr const char* kAgentModel = "models/human_0.glb";
 // the sandbox ships; a real game would have footsteps gated on the gait.
 constexpr const char* kStepClip = "audio/ambient.wav";
 
-constexpr Vec4 kGuardBone{0.95f, 0.55f, 0.35f, 1.0f};
-constexpr Vec4 kCone{0.45f, 0.85f, 0.55f, 1.0f};
-constexpr Vec4 kSure{0.35f, 1.00f, 0.45f, 1.0f};
-constexpr Vec4 kMemory{0.95f, 0.65f, 0.25f, 1.0f};
-constexpr Vec4 kDownBone{0.42f, 0.42f, 0.46f, 1.0f};
 
 // --- the HUD's palette (g1/g2) ----------------------------------------------
 constexpr Vec4 kHudBack{0.06f, 0.07f, 0.09f, 0.85f};
@@ -628,7 +623,10 @@ class Infiltration final : public examples::ExampleGame {
     DrawObjective(frame, leg_);
     DrawPlayer(frame, pose_, clips_->Skeleton(), agent_->Skeleton(),
                gaits_, map_, player_);
-    DrawGuards(frame);
+    DrawGuards(frame, pose_, rag_bodies_, clips_->Skeleton(),
+               agent_->Skeleton(), gaits_, map_, rag_rig_, body_world_,
+               guard_, rag_, boards_, crowd_, cone_, alert_pose_,
+               alert_mask_);
     return frame;
   }
 
@@ -1940,74 +1938,6 @@ class Infiltration final : public examples::ExampleGame {
 
 
 
-  void DrawGuards(RenderFrame& frame) {
-    if (gaits_.empty()) {
-      return;
-    }
-    for (Usize g = 0; g < kGuards; ++g) {
-      // A DOWNED GUARD IS DRAWN FROM THE SAME FROZEN STATE — the phase and the
-      // locomotion state stopped advancing, so `PoseFor` reproduces its last
-      // pose exactly. Which is the point: it stands up straight, in mid-stride,
-      // and that is what a ragdoll would fix.
-      PoseFor(pose_, clips_->Skeleton(), agent_->Skeleton(), gaits_, map_,
-              guard_.loco[g], guard_.phase[g]);
-      // §12.10.2.5's MASKED gesture layer, at the weight the POLICY chose.
-      const F32 posture = static_cast<F32>(std::clamp(
-          boards_.Agent(g)->GetNumber(StringId{"posture"}, 0.0), 0.0, 1.0));
-      if (posture > 0.0f && !alert_pose_.empty()) {
-        anim::AddPose(pose_.local, alert_pose_, posture, pose_.local, alert_mask_);
-      }
-      // A LIMP GUARD IS POSED FROM ITS BODIES (§16.6.3's
-      // ApplyRagDollsToSkeletons), and drawn in the frame frozen at the
-      // takedown — the simulation's displacement lands in the pelvis's local
-      // pose, so a fixed placement is correct and a chasing one would not be.
-      if (rag_[g].live) {
-        PoseFromLimp(pose_, rag_bodies_, agent_->Skeleton(), rag_rig_,
-                     body_world_, rag_[g]);
-        DrawSkeleton(frame, agent_->Skeleton(), pose_.local, pose_.globals, rag_[g].at, rag_[g].facing, kDownBone);
-        continue;
-      }
-      const Vec3 at = crowd_.AgentPosition(guard_.id[g]);
-      DrawSkeleton(frame, agent_->Skeleton(), pose_.local, pose_.globals, at, guard_.loco[g].facing,
-                   guard_.disabled[g] ? kDownBone : kGuardBone);
-      if (guard_.disabled[g]) {
-        continue;  // no cone, no confidence bar, no memory cross: it has none
-      }
-
-      // The cone, the confidence, and the remembered position — §17.2.3's own
-      // test is whether a player can perceive the character's motivation.
-      const Vec3 eye = at + Vec3{0.0f, 1.6f, 0.0f};
-      constexpr int kArc = 9;
-      Vec3 previous{};
-      for (int k = 0; k <= kArc; ++k) {
-        const F32 t = static_cast<F32>(k) / static_cast<F32>(kArc);
-        const F32 a =
-            guard_.loco[g].facing + (t * 2.0f - 1.0f) * cone_.half_angle;
-        const Vec3 rim =
-            eye + Vec3{std::sin(a), 0.0f, std::cos(a)} * cone_.range;
-        if (k == 0 || k == kArc) {
-          frame.debug.AddLine(eye, rim, kCone);
-        }
-        if (k > 0) {
-          frame.debug.AddLine(previous, rim, kCone);
-        }
-        previous = rim;
-      }
-      const ai::Awareness& aw = guard_.aware[g];
-      if (aw.confidence > 0.0f) {
-        const Vec3 base = at + Vec3{0.0f, 2.0f, 0.0f};
-        frame.debug.AddLine(base, base + Vec3{0.0f, aw.confidence, 0.0f},
-                            aw.visible_now ? kSure : kMemory);
-      }
-      if (!aw.visible_now && aw.seconds_since_seen >= 0.0f) {
-        const Vec3 m = aw.last_known_position;
-        frame.debug.AddLine(m - Vec3{0.4f, 0, 0}, m + Vec3{0.4f, 0, 0},
-                            kMemory);
-        frame.debug.AddLine(m - Vec3{0, 0, 0.4f}, m + Vec3{0, 0, 0.4f},
-                            kMemory);
-      }
-    }
-  }
 
 
   // The objective, in the WORLD as well as on the HUD — §17.2.3's test again:
