@@ -1224,11 +1224,12 @@ class Infiltration final : public examples::ExampleGame {
   // the LIVE agent's, because a conscious guard is still walking, rather than
   // the one frozen at the takedown.
   void PoseHitBoxTargets(Usize g) {
-    PoseFor(guard_.loco[g], guard_.phase[g]);
-    globals_.resize(agent_->Skeleton().JointCount());
-    anim::ComposeGlobals(agent_->Skeleton(), local_, globals_);
+    PoseFor(pose_, clips_->Skeleton(), agent_->Skeleton(), gaits_, map_,
+            guard_.loco[g], guard_.phase[g]);
+    pose_.globals.resize(agent_->Skeleton().JointCount());
+    anim::ComposeGlobals(agent_->Skeleton(), pose_.local, pose_.globals);
     rag_targets_.resize(rag_rig_.BoneCount());
-    anim::PoseToRagdollTargets(rag_rig_, globals_, LiveToWorld(g),
+    anim::PoseToRagdollTargets(rag_rig_, pose_.globals, LiveToWorld(g),
                                rag_targets_);
   }
 
@@ -1254,12 +1255,13 @@ class Infiltration final : public examples::ExampleGame {
 
     // The animated pose, composed — §16.6.3's "the animation system produces an
     // intermediate, local-space skeletal pose".
-    PoseFor(guard_.loco[g], guard_.phase[g]);
-    globals_.resize(agent_->Skeleton().JointCount());
-    anim::ComposeGlobals(agent_->Skeleton(), local_, globals_);
+    PoseFor(pose_, clips_->Skeleton(), agent_->Skeleton(), gaits_, map_,
+            guard_.loco[g], guard_.phase[g]);
+    pose_.globals.resize(agent_->Skeleton().JointCount());
+    anim::ComposeGlobals(agent_->Skeleton(), pose_.local, pose_.globals);
 
     rag_targets_.resize(rag_rig_.BoneCount());
-    anim::PoseToRagdollTargets(rag_rig_, globals_, to_world, rag_targets_);
+    anim::PoseToRagdollTargets(rag_rig_, pose_.globals, to_world, rag_targets_);
 
     const std::span<const anim::RagdollBone> bones = rag_rig_.Bones();
     // NOTHING IS BUILT HERE ANY MORE — the bodies have existed since the guard
@@ -1291,7 +1293,7 @@ class Infiltration final : public examples::ExampleGame {
       // the capsule is offset half a bone down, and hanging a shoulder off the
       // middle of the upper arm is a visibly wrong elbow.
       const Vec3 anchor =
-          TransformPoint(to_world * globals_[bones[b].joint], Vec3{});
+          TransformPoint(to_world * pose_.globals[bones[b].joint], Vec3{});
       // §13.4.8.7's "specialized constraints". The twist axis runs DOWN the
       // bone, which is the +Y convention `anim/ragdoll.hpp` documents and
       // `ragdoll_test` pins.
@@ -1385,9 +1387,10 @@ class Infiltration final : public examples::ExampleGame {
       // 1. the animated pose the motors chase. It is FROZEN — a downed guard's
       // gait stopped advancing at the takedown — so this is the pose it died
       // in, which is exactly what §13.4.8.8 wants a rest angle to be.
-      PoseFor(guard_.loco[g], guard_.phase[g]);
-      anim::ComposeGlobals(agent_->Skeleton(), local_, globals_);
-      anim::PoseToRagdollTargets(rag_rig_, globals_, LimpToWorld(g),
+      PoseFor(pose_, clips_->Skeleton(), agent_->Skeleton(), gaits_, map_,
+              guard_.loco[g], guard_.phase[g]);
+      anim::ComposeGlobals(agent_->Skeleton(), pose_.local, pose_.globals);
+      anim::PoseToRagdollTargets(rag_rig_, pose_.globals, LimpToWorld(g),
                                  rag_targets_);
       // 2. drive the constraints toward it, at whatever authority is left.
       const std::span<const anim::RagdollBone> bones = rag_rig_.Bones();
@@ -1451,9 +1454,9 @@ class Infiltration final : public examples::ExampleGame {
     if (!from_world) {
       return;
     }
-    globals_.resize(agent_->Skeleton().JointCount());
+    pose_.globals.resize(agent_->Skeleton().JointCount());
     anim::ApplyRagdollToPose(agent_->Skeleton(), rag_rig_, rag_bodies_,
-                             *from_world, globals_, local_);
+                             *from_world, pose_.globals, pose_.local);
   }
 
   // ADR-0191's muffling, applied to the player's own sound. The listener is the
@@ -1973,36 +1976,18 @@ class Infiltration final : public examples::ExampleGame {
     return anim::LocomotionConfig{.gaits = gaits_, .turn_rate = 6.0f};
   }
 
-  void SampleGait(const anim::LocomotionGait& gait, F32 phase,
-                  std::vector<Transform>& into) const {
-    if (gait.clip == nullptr || gait.clip->Duration() <= 0.0f) {
-      into.assign(clips_->Skeleton().JointCount(), Transform{});
-      return;
-    }
-    anim::SampleClip(*gait.clip, std::fmod(phase, gait.clip->Duration()), into);
-  }
 
   // The base pose for one actor, from its locomotion state — the four calls
   // ADR-0184/0192 describe, with the gesture layer added by the caller.
-  void PoseFor(const anim::LocomotionState& loco, F32 phase) {
-    clip_pose_.resize(clips_->Skeleton().JointCount());
-    SampleGait(gaits_[loco.gait_a], phase, clip_pose_);
-    if (loco.gait_b != loco.gait_a && loco.blend > 0.0f) {
-      blend_pose_.resize(clip_pose_.size());
-      SampleGait(gaits_[loco.gait_b], phase, blend_pose_);
-      anim::BlendPoses(clip_pose_, blend_pose_, loco.blend, clip_pose_);
-    }
-    local_.resize(agent_->Skeleton().JointCount());
-    anim::RetargetPose(clip_pose_, map_, 1.0f, local_);
-  }
 
 
   void DrawPlayer(RenderFrame& frame) {
     if (gaits_.empty()) {
       return;
     }
-    PoseFor(player_.loco, player_.phase);
-    DrawSkeleton(frame, agent_->Skeleton(), local_, globals_, player_.position, player_.loco.facing, kPlayerBone);
+    PoseFor(pose_, clips_->Skeleton(), agent_->Skeleton(), gaits_, map_,
+            player_.loco, player_.phase);
+    DrawSkeleton(frame, agent_->Skeleton(), pose_.local, pose_.globals, player_.position, player_.loco.facing, kPlayerBone);
   }
 
   void DrawGuards(RenderFrame& frame) {
@@ -2014,12 +1999,13 @@ class Infiltration final : public examples::ExampleGame {
       // locomotion state stopped advancing, so `PoseFor` reproduces its last
       // pose exactly. Which is the point: it stands up straight, in mid-stride,
       // and that is what a ragdoll would fix.
-      PoseFor(guard_.loco[g], guard_.phase[g]);
+      PoseFor(pose_, clips_->Skeleton(), agent_->Skeleton(), gaits_, map_,
+              guard_.loco[g], guard_.phase[g]);
       // §12.10.2.5's MASKED gesture layer, at the weight the POLICY chose.
       const F32 posture = static_cast<F32>(std::clamp(
           boards_.Agent(g)->GetNumber(StringId{"posture"}, 0.0), 0.0, 1.0));
       if (posture > 0.0f && !alert_pose_.empty()) {
-        anim::AddPose(local_, alert_pose_, posture, local_, alert_mask_);
+        anim::AddPose(pose_.local, alert_pose_, posture, pose_.local, alert_mask_);
       }
       // A LIMP GUARD IS POSED FROM ITS BODIES (§16.6.3's
       // ApplyRagDollsToSkeletons), and drawn in the frame frozen at the
@@ -2027,11 +2013,11 @@ class Infiltration final : public examples::ExampleGame {
       // pose, so a fixed placement is correct and a chasing one would not be.
       if (rag_[g].live) {
         PoseFromLimp(g);
-        DrawSkeleton(frame, agent_->Skeleton(), local_, globals_, rag_[g].at, rag_[g].facing, kDownBone);
+        DrawSkeleton(frame, agent_->Skeleton(), pose_.local, pose_.globals, rag_[g].at, rag_[g].facing, kDownBone);
         continue;
       }
       const Vec3 at = crowd_.AgentPosition(guard_.id[g]);
-      DrawSkeleton(frame, agent_->Skeleton(), local_, globals_, at, guard_.loco[g].facing,
+      DrawSkeleton(frame, agent_->Skeleton(), pose_.local, pose_.globals, at, guard_.loco[g].facing,
                    guard_.disabled[g] ? kDownBone : kGuardBone);
       if (guard_.disabled[g]) {
         continue;  // no cone, no confidence bar, no memory cross: it has none
@@ -2199,10 +2185,7 @@ class Infiltration final : public examples::ExampleGame {
   std::vector<Transform> agent_rest_;
   std::vector<Transform> alert_pose_;
   std::vector<F32> alert_mask_;
-  std::vector<Transform> clip_pose_;
-  std::vector<Transform> blend_pose_;
-  std::vector<Transform> local_;
-  std::vector<Mat4> globals_;
+  PoseBuffers pose_;
 
   // audio
   audio::AudioSystem* audio_ = nullptr;
