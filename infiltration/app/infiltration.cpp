@@ -105,6 +105,7 @@
 #include "aether/ui/screen.hpp"
 #include "infiltration/content/level.hpp"
 #include "infiltration/features/guards/guards.hpp"
+#include "infiltration/features/ragdoll/ragdoll.hpp"
 #include "infiltration/runtime/player.hpp"
 #include "infiltration/view/draw.hpp"
 #include "example_base.hpp"
@@ -113,6 +114,7 @@
 using namespace aether;
 using namespace infiltration::content;
 using namespace infiltration::features::guards;
+using namespace infiltration::features::ragdoll;
 using namespace infiltration::runtime;
 using namespace infiltration::view;
 
@@ -1251,7 +1253,7 @@ class Infiltration final : public examples::ExampleGame {
     // placement that keeps chasing an agent.
     rag_[g].at = crowd_.AgentPosition(guard_.id[g]);
     rag_[g].facing = guard_.loco[g].facing;
-    const Mat4 to_world = LimpToWorld(g);
+    const Mat4 to_world = LimpToWorld(rag_[g]);
 
     // The animated pose, composed — §16.6.3's "the animation system produces an
     // intermediate, local-space skeletal pose".
@@ -1341,11 +1343,6 @@ class Infiltration final : public examples::ExampleGame {
     return joint < joints.size() ? joints[joint].debug_name : "?";
   }
 
-  [[nodiscard]] Mat4 LimpToWorld(Usize g) const {
-    return MakeTranslation(rag_[g].at) *
-           QuatToMat4(
-               QuatFromAxisAngle(Vec3{0.0f, 1.0f, 0.0f}, rag_[g].facing));
-  }
 
   [[nodiscard]] F32 RigMass() const {
     F32 total = 0.0f;
@@ -1390,7 +1387,7 @@ class Infiltration final : public examples::ExampleGame {
       PoseFor(pose_, clips_->Skeleton(), agent_->Skeleton(), gaits_, map_,
               guard_.loco[g], guard_.phase[g]);
       anim::ComposeGlobals(agent_->Skeleton(), pose_.local, pose_.globals);
-      anim::PoseToRagdollTargets(rag_rig_, pose_.globals, LimpToWorld(g),
+      anim::PoseToRagdollTargets(rag_rig_, pose_.globals, LimpToWorld(rag_[g]),
                                  rag_targets_);
       // 2. drive the constraints toward it, at whatever authority is left.
       const std::span<const anim::RagdollBone> bones = rag_rig_.Bones();
@@ -1445,19 +1442,6 @@ class Infiltration final : public examples::ExampleGame {
 
   // The other direction, called from the draw path because that is where the
   // pose is wanted — the bodies were already stepped in FixedUpdate.
-  void PoseFromLimp(Usize g) {
-    rag_bodies_.resize(rag_[g].bodies.size());
-    for (Usize b = 0; b < rag_[g].bodies.size(); ++b) {
-      rag_bodies_[b] = body_world_.BodyTransform(rag_[g].bodies[b]);
-    }
-    const std::optional<Mat4> from_world = TryInverse(LimpToWorld(g));
-    if (!from_world) {
-      return;
-    }
-    pose_.globals.resize(agent_->Skeleton().JointCount());
-    anim::ApplyRagdollToPose(agent_->Skeleton(), rag_rig_, rag_bodies_,
-                             *from_world, pose_.globals, pose_.local);
-  }
 
   // ADR-0191's muffling, applied to the player's own sound. The listener is the
   // camera; the source is the player; the wall is between them or it is not.
@@ -2004,7 +1988,8 @@ class Infiltration final : public examples::ExampleGame {
       // takedown — the simulation's displacement lands in the pelvis's local
       // pose, so a fixed placement is correct and a chasing one would not be.
       if (rag_[g].live) {
-        PoseFromLimp(g);
+        PoseFromLimp(pose_, rag_bodies_, agent_->Skeleton(), rag_rig_,
+                     body_world_, rag_[g]);
         DrawSkeleton(frame, agent_->Skeleton(), pose_.local, pose_.globals, rag_[g].at, rag_[g].facing, kDownBone);
         continue;
       }
@@ -2144,20 +2129,6 @@ class Infiltration final : public examples::ExampleGame {
   // the ragdoll (r4-r6)
   physics::World body_world_;
   anim::RagdollRig rag_rig_;
-  struct Limp {
-    std::vector<physics::BodyId> bodies;
-    std::vector<physics::ConstraintId> joints;
-    Vec3 at{};  // the frame the whole body lives in, frozen at takedown
-    F32 facing = 0.0f;
-    F32 power = 0.0f;  // §13.4.8.8 authority, draining to zero
-    bool live = false;
-    // h4 — where the pelvis was, and when, at the instant the motion type
-    // switched. The body's inherited SPEED is measured from these, and it is
-    // the one observable that separates §13.5.1.2's impulse move from a
-    // teleport (`event:2026-09-10#3`).
-    Vec3 limp_from{};
-    U64 limp_step = 0;
-  };
   std::array<Limp, kGuards> rag_{};
   std::vector<nav::CharacterCapsule> capsules_;
   std::vector<Transform> rag_targets_;

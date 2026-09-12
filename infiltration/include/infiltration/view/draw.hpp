@@ -29,14 +29,19 @@
 #include "aether/scene_core/scene.hpp"
 #include "aether/core/types.hpp"
 #include "infiltration/content/level.hpp"
+#include "aether/anim/ragdoll.hpp"
+#include "aether/physics/world.hpp"
+#include "infiltration/features/ragdoll/ragdoll.hpp"
 #include "infiltration/runtime/player.hpp"
+#include "infiltration/runtime/pose.hpp"
 
 namespace infiltration::view {
 
 using namespace aether;  // NOLINT(google-build-using-namespace)
 
 // The space this draws, by the names content gives it.
-using namespace content;  // NOLINT(google-build-using-namespace)
+using namespace content;   // NOLINT(google-build-using-namespace)
+using namespace runtime;  // NOLINT(google-build-using-namespace)
 
 // The colours the slice draws with, MOVED from the app file rather than
 // written afresh — a first version of this header invented four plausible
@@ -174,47 +179,6 @@ inline void ProbeCamera(CameraProbe& probe_, const scene::Node* node,
     }
 }
 
-// The scratch a posed character needs: sampled clip, the second gait it is
-// blending with, the retargeted local pose, and the globals DrawSkeleton
-// composes. Owned by the caller — this runs once per character per frame.
-struct PoseBuffers {
-  std::vector<Transform> clip;
-  std::vector<Transform> blend;
-  std::vector<Transform> local;
-  std::vector<Mat4> globals;
-};
-
-// A gait at a phase, or a rest pose when the gait has no clip — the fallback
-// matters: a missing clip must not leave the previous character's pose in the
-// buffer.
-inline void SampleGait(const resources::Skeleton& clip_rig,
-                       const anim::LocomotionGait& gait, F32 phase,
-                       std::vector<Transform>& into) {
-    if (gait.clip == nullptr || gait.clip->Duration() <= 0.0f) {
-      into.assign(clip_rig.JointCount(), Transform{});
-      return;
-    }
-    anim::SampleClip(*gait.clip, std::fmod(phase, gait.clip->Duration()), into);
-}
-
-// §12.9 stages 1 and 3: sample, blend the two gaits the solver chose, then
-// retarget onto the skeleton that will be drawn.
-inline void PoseFor(PoseBuffers& buf, const resources::Skeleton& clip_rig,
-                    const resources::Skeleton& agent_rig,
-                    std::span<const anim::LocomotionGait> gaits,
-                    const anim::RetargetMap& map,
-                    const anim::LocomotionState& loco, F32 phase) {
-    buf.clip.resize(clip_rig.JointCount());
-    SampleGait(clip_rig, gaits[loco.gait_a], phase, buf.clip);
-    if (loco.gait_b != loco.gait_a && loco.blend > 0.0f) {
-      buf.blend.resize(buf.clip.size());
-      SampleGait(clip_rig, gaits[loco.gait_b], phase, buf.blend);
-      anim::BlendPoses(buf.clip, buf.blend, loco.blend, buf.clip);
-    }
-    buf.local.resize(agent_rig.JointCount());
-    anim::RetargetPose(buf.clip, map, 1.0f, buf.local);
-}
-
 // The player, drawn as bones — there is no character mesh in the slice, and a
 // skeleton is what makes a gait legible.
 constexpr Vec4 kPlayerBone{0.35f, 0.80f, 1.00f, 1.0f};
@@ -231,5 +195,29 @@ inline void DrawPlayer(RenderFrame& frame, PoseBuffers& buf,
     PoseFor(buf, clip_rig, agent_rig, gaits, map,
             player.loco, player.phase);
     DrawSkeleton(frame, agent_rig, buf.local, buf.globals, player.position, player.loco.facing, kPlayerBone);
+}
+
+// §16.6.3's ApplyRagDollsToSkeletons: the simulated bodies become a pose, in
+// the limp body's own frame. `bodies` is caller-owned scratch for the same
+// reason PoseBuffers is — this runs per downed guard per frame.
+//
+// A failed inverse leaves the previous pose alone rather than drawing a
+// degenerate one: a frame of the last good pose beats a frame of nothing.
+inline void PoseFromLimp(PoseBuffers& buf, std::vector<Transform>& bodies,
+                         const resources::Skeleton& agent_rig,
+                         const anim::RagdollRig& rig,
+                         const physics::World& world,
+                         const features::ragdoll::Limp& limp) {
+    bodies.resize(limp.bodies.size());
+    for (Usize b = 0; b < limp.bodies.size(); ++b) {
+      bodies[b] = world.BodyTransform(limp.bodies[b]);
+    }
+    const std::optional<Mat4> from_world = TryInverse(LimpToWorld(limp));
+    if (!from_world) {
+      return;
+    }
+    buf.globals.resize(agent_rig.JointCount());
+    anim::ApplyRagdollToPose(agent_rig, rig, bodies,
+                             *from_world, buf.globals, buf.local);
 }
 }  // namespace infiltration::view

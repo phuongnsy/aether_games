@@ -9,5 +9,6 @@ add_library(infiltration::runtime ALIAS infiltration_runtime)
 target_include_directories(infiltration_runtime PUBLIC ${INFILTRATION_INCLUDE_DIR})
 target_link_libraries(
   infiltration_runtime
-  PUBLIC aether::core aether::anim aether::nav infiltration::content
+  PUBLIC aether::core aether::anim aether::nav aether::resources
+         infiltration::content
   PRIVATE aether_warnings)
