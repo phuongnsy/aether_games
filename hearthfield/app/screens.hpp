@@ -5,7 +5,7 @@
 // … or perform other complex in-game tasks" — as distinct from the HUD, which
 // is always on and lives in view/.
 //
-// In app/ because games/CLAUDE.md puts screens there, and because they act
+// In app/ because AGENTS.md puts screens there, and because they act
 // through runtime::GameApi: EVERY button writes a latched field and nothing
 // else. A screen that reached into the world would work perfectly and silently
 // end the replay (H4 plan §3b).

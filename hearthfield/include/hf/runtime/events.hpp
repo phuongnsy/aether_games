@@ -1,7 +1,7 @@
 // The frame-buffered event bus: the inter-feature and sim→view contract.
 //
 // Every payload lives HERE rather than in the feature that emits it, so
-// runtime never depends on a feature (games/CLAUDE.md dependency law 1). A
+// runtime never depends on a feature (AGENTS.md dependency law 1). A
 // feature's own events.hpp is an alias onto this vocabulary.
 #pragma once
 
@@ -113,7 +113,7 @@ struct Refused {
 
 // A building went up. Carries WHAT and WHERE as well as the id, so view/ can
 // spawn its mesh from the event without reaching into the world (the sim→view
-// contract in games/CLAUDE.md).
+// contract in AGENTS.md).
 struct BuildingPlaced {
   aether::U32 building = 0;
   content::BuildingKind kind = 0;

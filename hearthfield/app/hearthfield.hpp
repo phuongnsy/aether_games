@@ -1,6 +1,6 @@
 // The composition root: the app::Game that owns the scene and drives the sim.
 //
-// The ONLY layer that sees everything (games/CLAUDE.md law 3), and the only one
+// The ONLY layer that sees everything (AGENTS.md law 3), and the only one
 // that may resolve a POINTER — picking needs a viewport, and the sim must not
 // know what a viewport is. The clock is the same rule and arrives at H2.
 #pragma once
@@ -288,7 +288,7 @@ class HearthfieldGame final : public aether::app::Game {
   // Built in Update from the pointer, consumed by the NEXT fixed step. `tap`
   // is latched rather than read live because FixedUpdate runs 0..N times per
   // frame and a tap read inside it is dropped on a zero-step frame — the
-  // input-latch rule in games/CLAUDE.md.
+  // input-latch rule in AGENTS.md.
   runtime::LatchedInput latched_;
 
   aether::scene::NodeId camera_;

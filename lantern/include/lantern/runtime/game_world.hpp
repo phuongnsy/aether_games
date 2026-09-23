@@ -3,7 +3,7 @@
 // Takes the Scene by reference rather than owning it: instantiating a world
 // needs `app::EngineSpawners` and a material factory, which live above this
 // layer. Runtime links aether::scene for the collision model and NO render,
-// which is what lets the step run headless (games/CLAUDE.md, dependency law 4).
+// which is what lets the step run headless (AGENTS.md, dependency law 4).
 #pragma once
 
 #include "aether/core/math/vec.hpp"

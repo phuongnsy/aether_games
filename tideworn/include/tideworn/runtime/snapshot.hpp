@@ -1,4 +1,4 @@
-// The immutable per-frame contract between sim and view (games/CLAUDE.md):
+// The immutable per-frame contract between sim and view (AGENTS.md):
 // `view` and the render passes consume THIS, never live game state.
 #pragma once
 

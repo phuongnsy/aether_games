@@ -1,5 +1,5 @@
 // Tideworn's declarative data: asset paths and the voyage's sea-state
-// schedule. Data, not code (games/CLAUDE.md) — systems read these, they never
+// schedule. Data, not code (AGENTS.md) — systems read these, they never
 // parse files.
 #pragma once
 

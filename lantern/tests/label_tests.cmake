@@ -11,7 +11,7 @@
 # file — which made `ctest -L headless` here cover one game of four.
 #
 # Every lantern case is headless by design: the sim layer creates no device and
-# links no render library (games/CLAUDE.md, dependency law 4), so the whole
+# links no render library (AGENTS.md, dependency law 4), so the whole
 # suite joins the default `headless` set with no exceptions to enumerate.
 # Checked rather than asserted — the suite was run on 2026-09-04 with DISPLAY
 # and WAYLAND_DISPLAY unset and passed whole.

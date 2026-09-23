@@ -39,7 +39,7 @@ class WeatherSim {
   // the geometry query snapshots real colliders). The spawn rect frames the
   // spire's ground slab; drops below kFallY die with the walker's rule.
   // Textures arrive as OPAQUE handles — the view owns the assets, the sim
-  // never touches the device (games/CLAUDE.md law 4).
+  // never touches the device (AGENTS.md law 4).
   void Setup(scene::Scene& scene, Mode mode, U64 seed, TextureHandle rain_tex,
              TextureHandle snow_tex);
 

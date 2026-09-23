@@ -1,7 +1,7 @@
 // The farm clock: one integer the fixed step owns, and the ONE place the step
 // rate appears.
 //
-// Nothing below app/ may read a wall clock (games/CLAUDE.md, spec §4). A crop
+// Nothing below app/ may read a wall clock (AGENTS.md, spec §4). A crop
 // stores an absolute `ready_tick` on this counter and the step compares two
 // integers it owns; elapsed real time reaches the sim only as
 // LatchedInput::offline_ticks.

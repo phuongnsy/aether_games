@@ -33,7 +33,7 @@ struct BuildingType {
   aether::U32 span = 1;
   aether::U32 cost = 0;
   // Drawn by view/. A path rather than a typed handle because `content` is the
-  // sim's layer and may not link `resources` (games/CLAUDE.md law 4).
+  // sim's layer and may not link `resources` (AGENTS.md law 4).
   std::string_view model;
   // Which recipes this kind can run. A building that could run anything would
   // make the kind decorative.

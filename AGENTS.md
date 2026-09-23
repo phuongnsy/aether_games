@@ -1,6 +1,6 @@
 # games/ — building games on aether
 
-> Read the root [`CLAUDE.md`](../CLAUDE.md) first. `games/coin_rush/` is the worked
+> Read the root [`AGENTS.md`](../AGENTS.md) first. `games/coin_rush/` is the worked
 > reference for every rule below — when unsure, read it there first. Scale by adding
 > units, never by fattening existing ones.
 
@@ -162,7 +162,7 @@ several systems, route reactions through events, not returned result structs.
   **A pass never walks the live `Scene`** — under `pipelining` the extract worker is
   walking it concurrently. Second view (minimap, extra camera): build it in
   `Extract`, ring it, index with `FrameContext::frame_index` — recipe in
-  [`engine/app/CLAUDE.md`](../engine/app/CLAUDE.md).
+  [`engine/app/AGENTS.md`](../engine/app/AGENTS.md).
 - **No screen↔game friendship.** Screens (in `app/`) drive flow through a narrow
   **`GameApi`** (defined in `runtime`) with exactly the verbs needed (`StartLevel`,
   `PushPause`, `NextLevel`, `RequestQuit`, + read-only state).
@@ -209,7 +209,7 @@ validated in-memory definition — **systems never parse files**.
   `assets/` → `generated/assets.hpp`; load via `assets::textures::kFoo`, never a
   path string. `view` owns assets and hands `runtime` opaque handles — `runtime`
   never links `resources`.
-- **C++23 + engine conventions** (root `CLAUDE.md`): `Result<T>`/no-throw, `.clangd`
+- **C++23 + engine conventions** (root `AGENTS.md`): `Result<T>`/no-throw, `.clangd`
   Google naming, why-not-how comments, value semantics. Game code is `namespace
   game`; TUs do `using namespace aether;` (contained per game).
 - **The opening splash is config, not code.** `assets/config.json`'s `splash`

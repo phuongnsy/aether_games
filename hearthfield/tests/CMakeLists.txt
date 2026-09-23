@@ -1,7 +1,7 @@
 # hearthfield_tests — the sim's unit suites, and at H0 the game's ONLY
 # deliverable: "a headless smoke test before anything renders" is the milestone.
 # Headless by construction — no device is created and no render library is
-# linked, which is also the seam this proves (games/CLAUDE.md law 4).
+# linked, which is also the seam this proves (AGENTS.md law 4).
 find_package(doctest CONFIG REQUIRED)
 
 add_executable(

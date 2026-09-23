@@ -1,6 +1,6 @@
 # hearthfield view — ALL presentation: the board's scene nodes, built from the
 # ViewSnapshot. Consumes the snapshot and the drained events; never a feature
-# (games/CLAUDE.md dependency law 2).
+# (AGENTS.md dependency law 2).
 add_library(
   hf_view STATIC
   src/board.cpp

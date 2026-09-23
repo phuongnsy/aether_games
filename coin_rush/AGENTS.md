@@ -1,9 +1,9 @@
 # games/coin_rush — the worked reference game
 
-Root: [`CLAUDE.md`](../../CLAUDE.md) · **read [`games/CLAUDE.md`](../CLAUDE.md) first** —
+Root: [`AGENTS.md`](../../AGENTS.md) · **read [`AGENTS.md`](../AGENTS.md) first** —
 it defines the layered feature-slice architecture every rule below instantiates.
 
-Coin Rush is the **worked example** of `games/CLAUDE.md`: a weather platformer built
+Coin Rush is the **worked example** of `AGENTS.md`: a weather platformer built
 as layered libraries. When you're unsure how a layer, target, event, or the replay
 path should look, read it here.
 
@@ -31,7 +31,7 @@ path should look, read it here.
   script hot-reload — and all of it is gone. It existed to answer whether the
   layered structure was a real seam; it was, and the answer is written down
   (ADR-0150/0151, `docs/perf/script-seam-baseline.md`). What replaced it is
-  [`games/lua/coin_rush`](../lua/CLAUDE.md): the same game as one Lua file, run
+  [`games/lua/coin_rush`](../lua/AGENTS.md): the same game as one Lua file, run
   by `aether_sim`. Keeping both would have made three implementations of one
   rule set with a consumer for one. **Do not re-add a script backend here** —
   the scripted version of this game already exists somewhere else.
@@ -58,5 +58,5 @@ path should look, read it here.
 
 ## See also
 
-[`games/CLAUDE.md`](../CLAUDE.md) (the architecture); the migration plan
+[`AGENTS.md`](../AGENTS.md) (the architecture); the migration plan
 `.claude/plans/` + `docs/plans/2026-07-21-coin-rush-view-renderer-extraction.md`.

@@ -310,7 +310,7 @@ void WeatherFx::SubmitBackground(rhi::Device& device, const RenderView& view,
   // ITS OWN PASS, with `clear` FALSE. That is what keeps the colour AND the
   // depth the scene pass just wrote, so the draw's depth-test-only state hides
   // a drop behind an island for free. Submitting without opening one lands the
-  // draw in the previous pass's view — engine/render/CLAUDE.md records that
+  // draw in the previous pass's view — engine/render/AGENTS.md records that
   // costing a debugging round, because the transform there is identity and
   // every particle collapses to a single clip-space point.
   //

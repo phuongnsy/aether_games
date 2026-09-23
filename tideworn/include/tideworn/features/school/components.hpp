@@ -1,4 +1,4 @@
-// Plain data only (games/CLAUDE.md feature template) — no logic here.
+// Plain data only (AGENTS.md feature template) — no logic here.
 #pragma once
 
 #include <vector>

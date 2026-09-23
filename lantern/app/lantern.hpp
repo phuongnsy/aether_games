@@ -1,6 +1,6 @@
 // The composition root: the app::Game that owns the scene and drives the sim.
 //
-// It is the ONLY layer that sees everything (games/CLAUDE.md law 3). The world
+// It is the ONLY layer that sees everything (AGENTS.md law 3). The world
 // is instantiated here because that needs app::EngineSpawners and a material
 // factory — both above the sim layers — and the Scene is then handed to the
 // fixed step by reference, which is what keeps `runtime` render-free.

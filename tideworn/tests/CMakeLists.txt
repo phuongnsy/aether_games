@@ -1,6 +1,6 @@
 # tideworn_tests — the sim's unit suites. HEADLESS by construction: no device
 # is created and no render library is linked, which is also the seam this
-# proves (games/CLAUDE.md, dependency law 4).
+# proves (AGENTS.md, dependency law 4).
 find_package(doctest CONFIG REQUIRED)
 
 add_executable(tideworn_tests main.cpp school_test.cpp voyage_test.cpp)

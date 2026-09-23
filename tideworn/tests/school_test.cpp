@@ -1,5 +1,5 @@
 // The school step's contract: deterministic, band-respecting, boat-fleeing.
-// Headless by construction (games/CLAUDE.md, dependency law 4).
+// Headless by construction (AGENTS.md, dependency law 4).
 #include <doctest/doctest.h>
 
 #include <cmath>

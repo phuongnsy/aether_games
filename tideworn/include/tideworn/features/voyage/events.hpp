@@ -1,4 +1,4 @@
-// Events this feature emits (games/CLAUDE.md: features talk via events).
+// Events this feature emits (AGENTS.md: features talk via events).
 #pragma once
 
 #include "tideworn/features/voyage/components.hpp"

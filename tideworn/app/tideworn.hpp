@@ -1,5 +1,5 @@
 // The composition root: the app::Game that owns the scene and wires sim to
-// presentation. The ONLY layer that sees everything (games/CLAUDE.md law 3).
+// presentation. The ONLY layer that sees everything (AGENTS.md law 3).
 #pragma once
 
 #include "aether/app/app.hpp"

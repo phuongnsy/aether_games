@@ -93,7 +93,7 @@ coin_rush_compile_shader(light_bump.fs fragment light_bump.fs.sc)
 coin_rush_compile_shader(light_shadow.fs fragment light_shadow.fs.sc)
 add_custom_target(coin_rush_shaders ALL DEPENDS ${_cr_shader_bins})
 
-# --- layered libraries (see games/CLAUDE.md) --------------------------------
+# --- layered libraries (see AGENTS.md) --------------------------------
 add_subdirectory(content) # declarative level set (gen_content → typed data)
 add_subdirectory(runtime) # sim foundation (GameWorld, event bus, snapshot)
 add_subdirectory(features/movement) # the kinematic controller feature slice

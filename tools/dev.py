@@ -93,7 +93,7 @@ def configure(args: list[str]) -> int:
     """Configure this repo's tree; the engine builds inside it as a subdir.
 
     No `--keep-current`: the symlink this moves is OURS (configure.py writes it
-    under `--source`), and every task below follows it. The recipe in CLAUDE.md
+    under `--source`), and every task below follows it. The recipe in AGENTS.md
     passed the flag and then had to name the build directory by hand.
     """
     return in_engine_env(

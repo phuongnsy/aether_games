@@ -1,6 +1,6 @@
 // The scripted session: a canned input stream, as DATA.
 //
-// `games/CLAUDE.md` names the destination — "the headless capture autopilot IS
+// `AGENTS.md` names the destination — "the headless capture autopilot IS
 // a canned input script (an InputSource)" — and until H6 this game's was not
 // one. It lived inside `Update`, keyed off the render frame counter and mixed
 // with pointer handling, so the only thing that could play it was the

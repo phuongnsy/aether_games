@@ -1,5 +1,5 @@
 // One fixed step's player intent, latched once per render frame (the
-// input-latch rule in games/CLAUDE.md). The replay unit: a run is a sequence.
+// input-latch rule in AGENTS.md). The replay unit: a run is a sequence.
 #pragma once
 
 #include "aether/core/types.hpp"

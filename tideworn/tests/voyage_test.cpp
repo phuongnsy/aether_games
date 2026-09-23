@@ -70,7 +70,7 @@ TEST_CASE("voyage: band transitions fire exactly once per crossing") {
 }
 
 TEST_CASE("game world: two runs of the same steps are identical") {
-  // The determinism pillar (games/CLAUDE.md): a pure function of
+  // The determinism pillar (AGENTS.md): a pure function of
   // (state, input, dt) — this is what input-script replay rests on.
   runtime::GameWorld a(7);
   runtime::GameWorld b(7);

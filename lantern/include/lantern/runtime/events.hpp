@@ -1,5 +1,5 @@
 // The frame's events: how the sim tells `view` what happened without knowing
-// view exists (games/CLAUDE.md, the event bus).
+// view exists (AGENTS.md, the event bus).
 #pragma once
 
 #include <variant>

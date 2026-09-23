@@ -1,5 +1,5 @@
 # tideworn view — presentation only. Consumes the runtime's snapshot; depends
-# on NO feature (games/CLAUDE.md law 2). This is the layer allowed to link
+# on NO feature (AGENTS.md law 2). This is the layer allowed to link
 # aether::render.
 add_library(
   tideworn_view STATIC

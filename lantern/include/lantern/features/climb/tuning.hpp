@@ -1,4 +1,4 @@
-// Movement feel, living WITH its feature (games/CLAUDE.md). Every number here
+// Movement feel, living WITH its feature (AGENTS.md). Every number here
 // was settled in examples/lab/controller_lab against its eight torture cases —
 // they are measured defaults, not taste.
 #pragma once

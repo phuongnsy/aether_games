@@ -1,6 +1,6 @@
 # hearthfield runtime — the deterministic fixed step: the farm clock, GameWorld,
 # the event bus, the shared plot table and the ViewSnapshot contract. A SIM
-# layer: NO aether::render, no device (games/CLAUDE.md dependency law 4).
+# layer: NO aether::render, no device (AGENTS.md dependency law 4).
 #
 # It does not link aether::scene_core yet either, because H0's sim is plain
 # data with no spatial query in it. That arrives with picking at H1.

@@ -82,7 +82,7 @@
         "Debug/msvc": "cb0a75fc0793d0a0a7d3400401c82991"
       },
       "runs": 1,
-      "source": "CLAUDE.md",
+      "source": "AGENTS.md",
       "covers": "the deterministic 2D SIM, end to end: 900 fixed steps of autopilot reaching YOU WIN 8/8",
       "note": "The only oracle here that proves SIMULATION determinism rather than render output — a one-frame capture of a state 900 steps deep, so any drift in the fixed step moves it. Shown byte-identical across a stash/rebuild/restore cycle twice on 2026-08-12."
     },

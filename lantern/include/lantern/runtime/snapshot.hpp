@@ -1,7 +1,7 @@
 // ViewSnapshot — the immutable frame the sim hands to `view`.
 //
 // Owned data only, no pointers back into sim state: the same rule the engine's
-// RenderFrame follows, for the same reason (root CLAUDE.md, seam 4).
+// RenderFrame follows, for the same reason (root AGENTS.md, seam 4).
 #pragma once
 
 #include <vector>

@@ -8,7 +8,7 @@
   ],
   "rules": [
     {
-      "_why": "games/lantern owns its character rather than borrowing the test fixture — games/CLAUDE.md forbids a game reaching into sandbox or tests assets.",
+      "_why": "games/lantern owns its character rather than borrowing the test fixture — AGENTS.md forbids a game reaching into sandbox or tests assets.",
       "cmd": [
         "python",
         "main.py",
@@ -79,7 +79,7 @@
       ]
     },
     {
-      "_why": "games/hearthfield's HUD font. IT HAD NO RULE AT ALL until 2026-08-29 — lantern's and coin_rush's were both here and hearthfield's font was committed beside them with its provenance in someone's shell history, which is the exact gap tools/CLAUDE.md names. NO OUTLINE, and that is the interesting parameter rather than an omission: the ring is drawn at SOURCE resolution and then scaled, so on a 5x7 face a 1px outline is 20% of the glyph's width on each side and the stroke comes out two-thirds outline. Measured on a scanline through the old HUD: 4,4 / 36,36 / 4,4 — two pixels of outline around two pixels of letter. It read as blurry and was not; the renderer was exact (three distinct levels, every run 2 px). Nothing here draws text over the world — every Label in hearthfield sits on a paper panel — so the outline was protecting a case that does not exist and closing the counters of 0, 8 and e for nothing. Size 2 rather than 3 because 3 clips the `Orders` tab, the `planting:` row and the shop's widest button; going bigger is a layout change, not a font one.",
+      "_why": "games/hearthfield's HUD font. IT HAD NO RULE AT ALL until 2026-08-29 — lantern's and coin_rush's were both here and hearthfield's font was committed beside them with its provenance in someone's shell history, which is the exact gap tools/AGENTS.md names. NO OUTLINE, and that is the interesting parameter rather than an omission: the ring is drawn at SOURCE resolution and then scaled, so on a 5x7 face a 1px outline is 20% of the glyph's width on each side and the stroke comes out two-thirds outline. Measured on a scanline through the old HUD: 4,4 / 36,36 / 4,4 — two pixels of outline around two pixels of letter. It read as blurry and was not; the renderer was exact (three distinct levels, every run 2 px). Nothing here draws text over the world — every Label in hearthfield sits on a paper panel — so the outline was protecting a case that does not exist and closing the counters of 0, 8 and e for nothing. Size 2 rather than 3 because 3 clips the `Orders` tab, the `planting:` row and the shop's widest button; going bigger is a layout change, not a font one.",
       "cmd": [
         "python",
         "main.py",
@@ -98,7 +98,7 @@
       ]
     },
     {
-      "_why": "games/lantern's HUD font. A game owns its authored assets (games/CLAUDE.md); borrowing the sandbox's would couple the game to the engine's sample build. STILL OUTLINED, deliberately left alone when hearthfield's outline came off on 2026-08-29: lantern is a night scene and its text is not guaranteed to sit on a panel, which is the case an outline is actually for.",
+      "_why": "games/lantern's HUD font. A game owns its authored assets (AGENTS.md); borrowing the sandbox's would couple the game to the engine's sample build. STILL OUTLINED, deliberately left alone when hearthfield's outline came off on 2026-08-29: lantern is a night scene and its text is not guaranteed to sit on a panel, which is the case an outline is actually for.",
       "cmd": [
         "python",
         "main.py",
@@ -515,7 +515,7 @@
         "games/tideworn/assets/env/ocean.ktx"
       ],
       "slow": true,
-      "note": "Tideworn's OCEAN environment — the same env_studio `ocean` preset water_lab uses (its baked sun disc must match the game's kSunDir, ADR-0055), baked into the game's OWN asset tree because a game never borrows engine test fixtures (games/CLAUDE.md)."
+      "note": "Tideworn's OCEAN environment — the same env_studio `ocean` preset water_lab uses (its baked sun disc must match the game's kSunDir, ADR-0055), baked into the game's OWN asset tree because a game never borrows engine test fixtures (AGENTS.md)."
     },
     {
       "cmd": [
@@ -835,7 +835,7 @@
       ]
     },
     {
-      "_why": "Hearthfield's flock (H5). A two-joint hen with idle and peck clips — the third consumer of Phase E's skeletal column, after lantern's walker and tideworn's fish. The game owns it rather than borrowing either: games/CLAUDE.md forbids a game reaching into another's assets.",
+      "_why": "Hearthfield's flock (H5). A two-joint hen with idle and peck clips — the third consumer of Phase E's skeletal column, after lantern's walker and tideworn's fish. The game owns it rather than borrowing either: AGENTS.md forbids a game reaching into another's assets.",
       "cmd": [
         "python",
         "main.py",

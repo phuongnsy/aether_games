@@ -1,5 +1,5 @@
 # How the games are built, run and debugged. ADR-0170 moved them out of the
-# engine and left the build as a paragraph of prose in CLAUDE.md; this is that
+# engine and left the build as a paragraph of prose in AGENTS.md; this is that
 # paragraph, typed once.
 #
 # THE TOOLCHAIN IS THE ENGINE'S, and this manifest deliberately does not own a
@@ -86,7 +86,7 @@ tideworn = { cmd = "python tools/dev.py run tideworn", depends-on = [
   "build",
 ], description = "play Tideworn" }
 # hearthfield started sim-only (no app/, no executable) and grew one at H1 —
-# CLAUDE.md's "staging order, not a standing exception".
+# AGENTS.md's "staging order, not a standing exception".
 hearthfield = { cmd = "python tools/dev.py run hearthfield", depends-on = [
   "build",
 ], description = "play Hearthfield" }

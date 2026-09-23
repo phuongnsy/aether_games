@@ -1,5 +1,5 @@
 // One fixed step's input, latched once per render frame (the input-latch rule
-// in games/CLAUDE.md). The replay unit: a run is a sequence of these.
+// in AGENTS.md). The replay unit: a run is a sequence of these.
 #pragma once
 
 #include "aether/core/math/vec.hpp"

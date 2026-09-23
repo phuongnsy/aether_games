@@ -1,4 +1,4 @@
-// School feel — feature-local constants (games/CLAUDE.md: feel lives WITH its
+// School feel — feature-local constants (AGENTS.md: feel lives WITH its
 // feature). Weights are accelerations in m/s^2 at unit error.
 #pragma once
 

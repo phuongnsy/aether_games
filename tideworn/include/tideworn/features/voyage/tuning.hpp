@@ -1,4 +1,4 @@
-// Feature-local tuning (feel lives WITH its feature — games/CLAUDE.md).
+// Feature-local tuning (feel lives WITH its feature — AGENTS.md).
 #pragma once
 
 #include "aether/core/types.hpp"

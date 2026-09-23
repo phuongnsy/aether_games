@@ -7,7 +7,7 @@
 // save-across-a-gap both stayed green, because they only ever replay what was
 // recorded — and nothing records a method call.
 //
-// `games/CLAUDE.md`: "Screens (in app/) drive flow through a narrow GameApi
+// `AGENTS.md`: "Screens (in app/) drive flow through a narrow GameApi
 // (defined in runtime) with exactly the verbs needed". H0 deliberately did not
 // front-load one; H4 is the first screen that needs it.
 #pragma once

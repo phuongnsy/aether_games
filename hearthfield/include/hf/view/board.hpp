@@ -1,6 +1,6 @@
 // The board: the scene nodes that show the sim's plot table.
 //
-// Consumes the ViewSnapshot and nothing else (games/CLAUDE.md dependency law
+// Consumes the ViewSnapshot and nothing else (AGENTS.md dependency law
 // 2) — it never sees a feature, and the sim never learns that meshes exist.
 #pragma once
 

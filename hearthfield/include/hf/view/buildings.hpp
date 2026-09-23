@@ -33,7 +33,7 @@ class Buildings {
 
   // Mirror the sim's building table onto the scene. Adds a node for anything
   // new, which is how a placement becomes visible without view/ subscribing to
-  // an event — the snapshot IS the contract (games/CLAUDE.md's sim/view split).
+  // an event — the snapshot IS the contract (AGENTS.md's sim/view split).
   // `dt` is the RENDER delta, not the fixed step: the sails turn as
   // presentation and are deliberately absent from the world state, because
   // Hearthfield's only portable oracle is a digest over that state.

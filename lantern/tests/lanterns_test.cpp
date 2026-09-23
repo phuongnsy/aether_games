@@ -1,5 +1,5 @@
 // Lantern's sim, headless. No device, no render library — if this file ever
-// needs one, a layer boundary has been crossed (games/CLAUDE.md law 4).
+// needs one, a layer boundary has been crossed (AGENTS.md law 4).
 #include "lantern/features/lanterns/lanterns.hpp"
 
 #include <doctest/doctest.h>

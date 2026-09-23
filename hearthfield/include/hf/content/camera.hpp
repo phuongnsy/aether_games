@@ -1,7 +1,7 @@
 // Every camera knob, in one declarative place — the board camera's tuning.
 //
 // In `content/` because that is where this game's tunables live (games/
-// CLAUDE.md: "Content is data, not code"), and in ONE struct rather than
+// AGENTS.md: "Content is data, not code"), and in ONE struct rather than
 // scattered constants so the whole feel can be read, diffed and overridden at a
 // glance. A dev panel or a world-file override attaches here and nowhere else.
 //

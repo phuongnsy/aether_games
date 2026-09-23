@@ -1,5 +1,5 @@
 // The deterministic core: Step() is a pure function of (world, LatchedInput,
-// dt). No wall clock, no unseeded RNG (games/CLAUDE.md "Determinism & replay").
+// dt). No wall clock, no unseeded RNG (AGENTS.md "Determinism & replay").
 #pragma once
 
 #include <vector>

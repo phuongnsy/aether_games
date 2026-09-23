@@ -1099,7 +1099,7 @@ void HearthfieldGame::ResolvePointer(const aether::app::AppContext& ctx) {
 }
 
 // The first order the barn can actually satisfy, or kNoSlot. app/'s job: it
-// sees everything (games/CLAUDE.md law 3), and the script may not.
+// sees everything (AGENTS.md law 3), and the script may not.
 aether::U8 HearthfieldGame::FillableSlot() const {
   const runtime::Barn& barn = world_.World().TheBarn();
   const runtime::OrderBoard& board = world_.World().Board();
@@ -1284,7 +1284,7 @@ void HearthfieldGame::FixedUpdate(const aether::app::AppContext& ctx, F32 dt) {
   // consumed it — FixedUpdate runs 0..N times a frame — so the session played
   // depended on the frame rate, and a digest over it would have been a
   // different number on a different machine. That is the input-latch rule from
-  // games/CLAUDE.md applied to a scripted input source rather than to a key.
+  // AGENTS.md applied to a scripted input source rather than to a key.
   if (autopilot_ && script_beat_ <= runtime::kScriptBeats) {
     latched_ = runtime::ScriptBeat(
         script_beat_,

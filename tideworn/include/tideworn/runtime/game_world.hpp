@@ -1,5 +1,5 @@
 // The deterministic core: a pure function of (state, LatchedInput, dt).
-// No wall clock, no unseeded RNG (games/CLAUDE.md "Determinism & replay").
+// No wall clock, no unseeded RNG (AGENTS.md "Determinism & replay").
 // A GameApi arrives with the first screen that needs one — not front-loaded.
 #pragma once
 

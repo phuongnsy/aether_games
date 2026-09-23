@@ -1,6 +1,6 @@
 // Marine life presentation: one scene node + skinned fish per FishInstance,
 // swim clips phase-staggered, transforms synced from the snapshot each frame
-// (view consumes the snapshot ONLY — games/CLAUDE.md law 2).
+// (view consumes the snapshot ONLY — AGENTS.md law 2).
 #pragma once
 
 #include <span>
